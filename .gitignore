@@ -12,7 +12,7 @@ JLinkSettings.ini
 *.dep
 *.hex
 *.htm
-* ieX
+* iex
 *.lnp
 *.map
 *.o
@@ -23,14 +23,18 @@ JLinkSettings.ini
 *.json
 *.uvoptx
 *.uvprojx
-*.iex
+*.lib
+*.a
 *.obj
 #Kei1工程记录和DeBug配置
-*.uVguix.*
+*.uvguix
 *.dbgconf
 #其它文件
 *.lst
 *.ini
 *.TMP
+*.txt
+#Embedded
+Embedded/
 EventRecorderStub.scvd
 RTE
