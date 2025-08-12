@@ -17,6 +17,8 @@
 
 void IBUS_Init(void);
 void IBUS_Read_Channles(uint8_t user_channels);
-uint8_t CheckRemoteSignal(void);
+
+/*遥控数据*/
+extern uint16_t channel[IBUS_USER_CHANNLES];
 
 #endif

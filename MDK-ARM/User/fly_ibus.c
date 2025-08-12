@@ -44,18 +44,3 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 		IBUS_Read_Channles(IBUS_USER_CHANNLES);
 	}
 }
-
-/*遥控信号检测*/
-uint8_t CheckRemoteSignal(void)
-{
-	if(channel[0] == 1501 && channel[2] == 1002 && channel[4] == 1000 && channel[5] == 1000)//遥控数据跳变
-	{return 0;}
-	else if(channel[0] == 0 &&channel[1] == 0)//未上电
-	{return 0;}
-	else 
-	{return 1;}
-}
-/*本文件代码优化空间：
- *中断改为DMA接收
- *遥控添加超时保护
- */

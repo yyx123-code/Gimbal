@@ -1,8 +1,15 @@
 #include <stdint.h>
 #include <stdio.h>
+#include <math.h>
 #include "calculate.h"
+#include "drv_can.h"
 
 #define FILTER_ALPHA 0.3f // 滤波系数，取值范围0到1
+
+/*角度结构体*/
+Angle_t yaw_angle;
+Angle_t pitch_angle;
+Angle_t driver_angle;
 
 /**
  * @brief 将一个16位的十进制数拆分为高八位和低八位
@@ -70,67 +77,6 @@ float LowPassFilter(float new_value)
     return filter_value;
 }
 
-int rc_to_motor(int rc_value)
-{
-    // 遥控器范围
-    const int RC_MIN = 1000;
-    const int RC_MAX = 2000;
-
-    // 电机速度范围
-    const int MOTOR_MIN = -30;
-    const int MOTOR_MAX = 30;
-
-    // 计算映射后的电机速度
-    int motor_speed = (rc_value - RC_MIN) * (MOTOR_MAX - MOTOR_MIN) / (RC_MAX - RC_MIN) + MOTOR_MIN;
-
-    // 限制输出范围（防止超出范围）
-    if (motor_speed < MOTOR_MIN) motor_speed = MOTOR_MIN;
-    if (motor_speed > MOTOR_MAX) motor_speed = MOTOR_MAX;
-
-    return motor_speed;
-}
-
-/*摩擦轮专属遥控通道值转速度*/
-int rc_to_friction(int rc_value)
-{
-    // 遥控器范围
-    const int RC_MIN = 1000;
-    const int RC_MAX = 2000;
-
-    // 电机速度范围
-    const int MOTOR_MIN = 0;
-    const int MOTOR_MAX = 8911;
-
-    // 计算映射后的电机速度
-    int motor_speed = (rc_value - RC_MIN) * (MOTOR_MAX - MOTOR_MIN) / (RC_MAX - RC_MIN) + MOTOR_MIN;
-
-    // 限制输出范围（防止超出范围）
-    if (motor_speed < MOTOR_MIN) motor_speed = MOTOR_MIN;
-    if (motor_speed > MOTOR_MAX) motor_speed = MOTOR_MAX;
-
-    return motor_speed;
-}
-/*遥控通道值转拨盘*/
-int rc_to_driver(int rc_value)
-{
-    // 遥控器范围
-    const int RC_MIN = 1000;
-    const int RC_MAX = 2000;
-
-    // 电机速度范围
-    const int MOTOR_MIN = -500;
-    const int MOTOR_MAX = 500;
-
-    // 计算映射后的电机速度
-    int motor_speed = (rc_value - RC_MIN) * (MOTOR_MAX - MOTOR_MIN) / (RC_MAX - RC_MIN) + MOTOR_MIN;
-
-    // 限制输出范围（防止超出范围）
-    if (motor_speed < MOTOR_MIN) motor_speed = MOTOR_MIN;
-    if (motor_speed > MOTOR_MAX) motor_speed = MOTOR_MAX;
-
-    return motor_speed;
-}
-
 /**
  * @brief 实际转过角度累计(用于角度环多圈处理)
 * @param Angle_t *motor电机结构体指针
@@ -159,6 +105,3 @@ void total_angle_calculate(Angle_t *motor, float new_angle)
   // 更新上一次角度值
   motor->last_angle = new_angle;
 }
-/*本文件代码优化空间：
- *遥控通道值转控制量合并
- */
