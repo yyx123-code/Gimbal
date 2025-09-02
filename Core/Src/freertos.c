@@ -25,28 +25,30 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+/*mpu6050*/
 #include "dmpKey.h"
 #include "dmpmap.h"
 #include "inv_mpu.h"
 #include "inv_mpu_dmp_motion_driver.h"
 #include "MPU6050.h"
 #include "MPU6050_reg.h"
-/*mpu6050*/
+/*sys*/
 #include "usart.h"
 #include "can.h"
-/*sys*/
+#include "queue.h"
+/*user*/
 #include "drv_can.h"
 #include "calculate.h"
 #include "pid.h"
-#include "fly_ibus.h"
 #include "control.h"
-/*user*/
+#include "dbus.h"
+/*tool*/
 #include <stdint.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
 #include <math.h>
-/*tool*/
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -117,25 +119,10 @@ const osThreadAttr_t PrintTask_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
-/* Definitions for canQueue */
-osMessageQueueId_t canQueueHandle;
-const osMessageQueueAttr_t canQueue_attributes = {
-  .name = "canQueue"
-};
-/* Definitions for printQueue */
-osMessageQueueId_t printQueueHandle;
-const osMessageQueueAttr_t printQueue_attributes = {
-  .name = "printQueue"
-};
-/* Definitions for remoteQueue */
-osMessageQueueId_t remoteQueueHandle;
-const osMessageQueueAttr_t remoteQueue_attributes = {
-  .name = "remoteQueue"
-};
-/* Definitions for mpu6050Queue */
-osMessageQueueId_t mpu6050QueueHandle;
-const osMessageQueueAttr_t mpu6050Queue_attributes = {
-  .name = "mpu6050Queue"
+/* Definitions for DR16 */
+osMessageQueueId_t DR16Handle;
+const osMessageQueueAttr_t DR16_attributes = {
+  .name = "DR16"
 };
 /* Definitions for xMotorDataMutex */
 osSemaphoreId_t xMotorDataMutexHandle;
@@ -161,6 +148,35 @@ void mpu6050_task(void *argument);
 void print_task(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
+
+/* Hook prototypes */
+void vApplicationStackOverflowHook(xTaskHandle xTask, signed char *pcTaskName);
+void vApplicationMallocFailedHook(void);
+
+/* USER CODE BEGIN 4 */
+void vApplicationStackOverflowHook(xTaskHandle xTask, signed char *pcTaskName)
+{
+   /* Run time stack overflow checking is performed if
+   configCHECK_FOR_STACK_OVERFLOW is defined to 1 or 2. This hook function is
+   called if a stack overflow is detected. */
+}
+/* USER CODE END 4 */
+
+/* USER CODE BEGIN 5 */
+void vApplicationMallocFailedHook(void)
+{
+   /* vApplicationMallocFailedHook() will only be called if
+   configUSE_MALLOC_FAILED_HOOK is set to 1 in FreeRTOSConfig.h. It is a hook
+   function that will get called if a call to pvPortMalloc() fails.
+   pvPortMalloc() is called internally by the kernel whenever a task, queue,
+   timer or semaphore is created. It is also called by various parts of the
+   demo application. If heap_1.c or heap_2.c are used, then the size of the
+   heap available to pvPortMalloc() is defined by configTOTAL_HEAP_SIZE in
+   FreeRTOSConfig.h, and the xPortGetFreeHeapSize() API function can be used
+   to query the size of free heap space that remains (although it does not
+   provide information on how the remaining heap might be fragmented). */
+}
+/* USER CODE END 5 */
 
 /**
   * @brief  FreeRTOS initialization
@@ -189,17 +205,8 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE END RTOS_TIMERS */
 
   /* Create the queue(s) */
-  /* creation of canQueue */
-  canQueueHandle = osMessageQueueNew (32, sizeof(uint16_t), &canQueue_attributes);
-
-  /* creation of printQueue */
-  printQueueHandle = osMessageQueueNew (32, sizeof(uint16_t), &printQueue_attributes);
-
-  /* creation of remoteQueue */
-  remoteQueueHandle = osMessageQueueNew (64, sizeof(uint16_t), &remoteQueue_attributes);
-
-  /* creation of mpu6050Queue */
-  mpu6050QueueHandle = osMessageQueueNew (16, sizeof(uint16_t), &mpu6050Queue_attributes);
+  /* creation of DR16 */
+  DR16Handle = osMessageQueueNew (64, sizeof(uint16_t)*RC_FRAME_LENGTH, &DR16_attributes);
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
@@ -273,10 +280,11 @@ void pid_task(void *argument)
   /* Infinite loop */
   for(;;)
   {
-		Yaw_Task();
-		Pitch_Task();
-		Driver_Task();
-		Friction_Task();
+		Set_Value();
+//		Yaw_Task();
+//		Pitch_Task();
+//		Driver_Task();
+//		Friction_Task();
     osDelay(5);
   }
   /* USER CODE END pid_task */
@@ -295,7 +303,7 @@ void can_task(void *argument)
   /* Infinite loop */
   for(;;)
   {
-		CAN_Task();
+//		CAN_Task();
 		osDelay(5);
   }
   /* USER CODE END can_task */
@@ -311,12 +319,13 @@ void can_task(void *argument)
 void remote_task(void *argument)
 {
   /* USER CODE BEGIN remote_task */
+	uint8_t Buffer[RC_FRAME_LENGTH];
   /* Infinite loop */
   for(;;)
   {
-		uint8_t result2 = Remote_Task();
-		Deinit_Task();//重新初始化
-    osDelay(100);
+		if(xQueueReceive(DR16Handle, Buffer, portMAX_DELAY) == pdTRUE)
+			Get_DR16_Data(Buffer);
+    osDelay(1);
   }
   /* USER CODE END remote_task */
 }
@@ -358,6 +367,7 @@ void print_task(void *argument)
   {
 		/*打印*/
 		printf("%f,%f,%f\n", yaw,roll,pitch);
+		Deinit_Task();//重新初始化
 		osDelay(20);
 		/*优化：DMA*/
   }

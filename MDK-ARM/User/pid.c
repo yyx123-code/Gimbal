@@ -3,11 +3,16 @@
 
 /*PID结构体*/
 pid_t yaw_speed_pid;
-pid_t pitch_speed_pid;
-pid_t driver_speed_pid;
 pid_t yaw_angle_pid;
-pid_t pitch_angle_pid;
+
+pid_t pitch_up_speed_pid;
+pid_t pitch_up_angle_pid;
+pid_t pitch_down_speed_pid;
+pid_t pitch_down_angle_pid;
+
+pid_t driver_speed_pid;
 pid_t driver_angle_pid;
+
 pid_t friction_left_pid;
 pid_t friction_right_pid;
 
@@ -19,6 +24,13 @@ void pid_init(pid_t *pid, float kp, float ki, float kd, float feedforward, pid_m
   pid->kd=kd;
 	pid->feedforward=feedforward;
 	pid->mode=mode;
+	
+	//所有变量清零
+	pid->err[0] = pid->err[1] = pid->err[2] = 0;
+	pid->i_out = 0;
+	pid->out = 0;
+	pid->braking = 0;
+	pid->last_target = 0;
 }
 
 /*PID计算函数*/

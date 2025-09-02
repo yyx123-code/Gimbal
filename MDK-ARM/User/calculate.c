@@ -73,8 +73,7 @@ static float filter_value = 0; // 滤波后的角度值
 
 float LowPassFilter(float new_value)
 {
-    filter_value = FILTER_ALPHA * new_value + (1 - FILTER_ALPHA) * filter_value;
-    return filter_value;
+   return filter_value = FILTER_ALPHA * new_value + (1 - FILTER_ALPHA) * filter_value;
 }
 
 /**

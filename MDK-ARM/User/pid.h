@@ -56,12 +56,14 @@ float calculate_dynamic_deadzone(float error, float base_deadzone, float dynamic
 void apply_dynamic_deadzone(pid_t *pid, float base_deadzone, float dynamic_range, float sensitivity);
 
 extern pid_t yaw_speed_pid;
-extern pid_t pitch_speed_pid;
-extern pid_t driver_speed_pid;
 extern pid_t yaw_angle_pid;
-extern pid_t pitch_angle_pid;
+extern pid_t driver_speed_pid;
 extern pid_t driver_angle_pid;
 extern pid_t friction_left_pid;
 extern pid_t friction_right_pid;
+extern pid_t pitch_up_speed_pid;
+extern pid_t pitch_up_angle_pid;
+extern pid_t pitch_down_speed_pid;
+extern pid_t pitch_down_angle_pid;
 
 #endif
