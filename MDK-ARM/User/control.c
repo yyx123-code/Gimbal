@@ -48,9 +48,11 @@ uint16_t fri_channel = 0;
 /*初始化任务*/
 void Init_Task(void)
 {
+	__disable_irq();//禁用全局中断
 	/*MPU6050 CAN IBUS*/
 	MPU6050_Init();
 	uint8_t result0 = MPU_DMP_Init();
+	__enable_irq();//启用所有中断
 	CAN_Init();
 	DBUS_Init();
 	/*PID初始化*/

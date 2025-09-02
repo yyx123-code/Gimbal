@@ -2,6 +2,7 @@
 #include "can.h"
 #include "drv_can.h"
 #include <stdint.h>
+#include <string.h>
 
 /*CAN缓存*/
 CAN_RxBuffer_t can1_rx_buffer;
@@ -21,31 +22,25 @@ Motor_Mode_t Pitch_Mode;
 /*can初始化*/
 void CAN_Init(void)
 {
-	/*CAN1*/
+	/*CAN1 - Pitch 左摩擦轮 右摩擦轮 拨盘*/
 	CAN_FilterTypeDef CAN1_Filter0;
 	/*过滤器初始化*/
 	CAN1_Filter0.FilterFIFOAssignment=CAN_FILTER_FIFO0;
 	CAN1_Filter0.FilterScale=CAN_FILTERSCALE_32BIT;
 	CAN1_Filter0.FilterBank=0;
-	CAN1_Filter0.FilterMode=CAN_FILTERMODE_IDMASK;
+	CAN1_Filter0.FilterMode=CAN_FILTERMODE_IDLIST;
 	CAN1_Filter0.FilterActivation=CAN_FILTER_ENABLE;
-	CAN1_Filter0.FilterIdHigh=0x0000;
-	CAN1_Filter0.FilterIdLow=0x0000;
-	CAN1_Filter0.FilterMaskIdHigh=0x0000;
-	CAN1_Filter0.FilterMaskIdLow=0x0000;
+	CAN1_Filter0.FilterIdHigh=(0x201 << 5) | (0x202 << 21);//friction
+	CAN1_Filter0.FilterIdLow=(0x203 << 5) | (0x206 << 21);  //driver&pitch
+	CAN1_Filter0.FilterMaskIdHigh=0;
+	CAN1_Filter0.FilterMaskIdLow=0;
 	CAN1_Filter0.SlaveStartFilterBank = 14;//从过滤器组(仅can1)
 	HAL_CAN_ConfigFilter(&hcan1, &CAN1_Filter0);
 	/*错误处理*/
 	if((HAL_CAN_ConfigFilter(&hcan1, &CAN1_Filter0)) != HAL_OK)
-	{Error_Handler();}
-	/*开启can1以及中断*/
-	HAL_CAN_Start(&hcan1);
-	HAL_CAN_ActivateNotification(&hcan1,
-			CAN_IT_RX_FIFO0_MSG_PENDING |	//FIFO0消息中断
-			CAN_IT_ERROR |								//错误中断
-			CAN_IT_BUSOFF |								//总线关闭中断
-			CAN_IT_LAST_ERROR_CODE);			//最后错误代码中断
-	/*CAN2*/
+		Error_Handler();
+	
+	/*CAN2 - yaw*/
 	CAN_FilterTypeDef CAN2_Filter14;
 	/*过滤器初始化*/
 	CAN2_Filter14.FilterFIFOAssignment=CAN_FILTER_FIFO0;
@@ -53,14 +48,22 @@ void CAN_Init(void)
 	CAN2_Filter14.FilterBank=14;
 	CAN2_Filter14.FilterMode=CAN_FILTERMODE_IDMASK;
 	CAN2_Filter14.FilterActivation=CAN_FILTER_ENABLE;
-	CAN2_Filter14.FilterIdHigh=0x0000;
-	CAN2_Filter14.FilterIdLow=0x0000;
-	CAN2_Filter14.FilterMaskIdHigh=0x0000;
-	CAN2_Filter14.FilterMaskIdLow=0x0000;
+	CAN2_Filter14.FilterIdHigh=0x208 << 5;//yaw
+	CAN2_Filter14.FilterIdLow=0;
+	CAN2_Filter14.FilterMaskIdHigh=0x7FF << 5;//检查所有11位标准ID
+	CAN2_Filter14.FilterMaskIdLow=0;
 	HAL_CAN_ConfigFilter(&hcan2, &CAN2_Filter14);
 	/*错误处理*/
 	if((HAL_CAN_ConfigFilter(&hcan2, &CAN2_Filter14)) != HAL_OK)
-	{Error_Handler();}	
+		Error_Handler();
+	
+	/*开启can1以及中断*/
+	HAL_CAN_Start(&hcan1);
+	HAL_CAN_ActivateNotification(&hcan1,
+			CAN_IT_RX_FIFO0_MSG_PENDING |	//FIFO0消息中断
+			CAN_IT_ERROR |								//错误中断
+			CAN_IT_BUSOFF |								//总线关闭中断
+			CAN_IT_LAST_ERROR_CODE);			//最后错误代码中断
 	/*开启can2以及中断*/
 	HAL_CAN_Start(&hcan2);//开启can2
 	HAL_CAN_ActivateNotification(&hcan2,
@@ -73,9 +76,10 @@ void CAN_Init(void)
 /**
   * @brief  CAN发送函数
   * @param  channel: can通道
+	* @param  motor_id: 电机ID
   * @param  message: 待发送的8字节数据
   */
-void CAN_Send(CAN_Channel_t channel, uint8_t *message)
+void CAN_Send(CAN_Channel_t channel, uint8_t motor_id, uint8_t *message)
 {
 	CAN_HandleTypeDef *hcan;
 	uint32_t std_id;
@@ -84,15 +88,22 @@ void CAN_Send(CAN_Channel_t channel, uint8_t *message)
 	if(channel == CAN_CHANNEL1)
 	{
 		hcan = &hcan1;
-		std_id = M3508_CTRL_ID_BASE;
 		mailbox = CAN_TX_MAILBOX0;	//指定邮箱
+		if(motor_id == LEFT_FRICTION_ID || motor_id == RIGHT_FRICTION_ID || motor_id == DRIVER_ID)
+			std_id = M3508_CTRL_ID_BASE;
+		else if(motor_id == PITCH_ID)
+			std_id = GM6020_CTRL_ID_BASE;
+		else
+			return;
   }
-	else
+	else if(channel == CAN_CHANNEL2)
 	{
 		hcan = &hcan2;
 		std_id = GM6020_CTRL_ID_BASE;
 		mailbox = CAN_TX_MAILBOX1;
 	}
+	else
+		return;
 	/* 统一报文头配置 */
 	CAN_TxHeaderTypeDef tx_header =
 	{
@@ -117,7 +128,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 		HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &rx_header, rx_data); 
 		can1_rx_buffer.length = rx_header.DLC;
 		can1_rx_buffer.id = (rx_header.IDE == CAN_ID_STD) ? rx_header.StdId : rx_header.ExtId;
-		/*储存数据(使用安全拷贝)*/
+		/*拷贝数据*/
 		ARM_MPU_OrderedMemcpy((volatile uint32_t*)can1_rx_buffer.data,
                      (const uint32_t*)rx_data,
                      (rx_header.DLC + 3) / 4);
@@ -131,7 +142,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 		HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &rx_header, rx_data); 
 		can2_rx_buffer.length = rx_header.DLC;
 		can2_rx_buffer.id = (rx_header.IDE == CAN_ID_STD) ? rx_header.StdId : rx_header.ExtId;
-		/*储存数据(使用安全拷贝)*/
+		/*拷贝数据*/
 		ARM_MPU_OrderedMemcpy((volatile uint32_t*)can2_rx_buffer.data,
                      (const uint32_t*)rx_data,
                      (rx_header.DLC + 3) / 4);
@@ -163,7 +174,6 @@ void ProcessMotorData(CAN_RxBuffer_t* rx_buf)
             target_data = &Driver_Data;
             break;
         default:
-            Error_Handler(); // 未知ID处理
             return;
     }
     /* 统一数据提取 */

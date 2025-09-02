@@ -58,8 +58,8 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
-
+uint8_t Buffer[RC_FRAME_LENGTH];
+uint8_t recflag = 0;
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -103,14 +103,14 @@ osThreadId_t RemoteTaskHandle;
 const osThreadAttr_t RemoteTask_attributes = {
   .name = "RemoteTask",
   .stack_size = 256 * 4,
-  .priority = (osPriority_t) osPriorityRealtime,
+  .priority = (osPriority_t) osPriorityRealtime1,
 };
 /* Definitions for MPU6050Task */
 osThreadId_t MPU6050TaskHandle;
 const osThreadAttr_t MPU6050Task_attributes = {
   .name = "MPU6050Task",
   .stack_size = 512 * 4,
-  .priority = (osPriority_t) osPriorityHigh2,
+  .priority = (osPriority_t) osPriorityRealtime,
 };
 /* Definitions for PrintTask */
 osThreadId_t PrintTaskHandle;
@@ -206,7 +206,7 @@ void MX_FREERTOS_Init(void) {
 
   /* Create the queue(s) */
   /* creation of DR16 */
-  DR16Handle = osMessageQueueNew (64, sizeof(uint16_t)*RC_FRAME_LENGTH, &DR16_attributes);
+  DR16Handle = osMessageQueueNew (64, sizeof(uint16_t), &DR16_attributes);
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
@@ -319,13 +319,16 @@ void can_task(void *argument)
 void remote_task(void *argument)
 {
   /* USER CODE BEGIN remote_task */
-	uint8_t Buffer[RC_FRAME_LENGTH];
+	
   /* Infinite loop */
   for(;;)
   {
 		if(xQueueReceive(DR16Handle, Buffer, portMAX_DELAY) == pdTRUE)
+		{
 			Get_DR16_Data(Buffer);
-    osDelay(1);
+			recflag = 1;
+		}
+    osDelay(10);
   }
   /* USER CODE END remote_task */
 }

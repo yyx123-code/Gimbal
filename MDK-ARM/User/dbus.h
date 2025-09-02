@@ -64,4 +64,6 @@ typedef struct
 void DBUS_Init(void);
 void Get_DR16_Data(uint8_t *Buff);
 
+extern RC_Ctrl_t RC_CtrlData;
+
 #endif
