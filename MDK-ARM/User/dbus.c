@@ -42,11 +42,9 @@ void HAL_UART_IdleCallBack(UART_HandleTypeDef *huart)
 		if(received_len == RC_FRAME_LENGTH)
 		{
 			Ready = 1;//设置数据就绪标志
-			DR16_Data(&dr16,(uint8_t*)SbusRxBuffer);
+			DR16_Data(&dr16,(uint8_t*)SbusRxBuffer);//
 			BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 //			BaseType_t TransRes = xQueueSendFromISR(DR16Handle, (void*)SbusRxBuffer, &xHigherPriorityTaskWoken);
-//			if(TransRes == pdTRUE)
-//				transflag = 1;
 			HAL_UART_Receive_DMA(huart, (uint8_t*)SbusRxBuffer, RC_FRAME_LENGTH);//重新启动DMA
 			portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 		}
@@ -118,7 +116,6 @@ void DR16_Data(rc_info_t *rc, uint8_t *buff)
     memset(rc, 0, sizeof(rc_info_t));
     return ;
   }
-
 //  rc->mouse.x = buff[6] | (buff[7] << 8); // x axis
 //  rc->mouse.y = buff[8] | (buff[9] << 8);
 //  rc->mouse.z = buff[10] | (buff[11] << 8);

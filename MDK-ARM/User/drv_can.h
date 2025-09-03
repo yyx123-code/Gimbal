@@ -7,7 +7,7 @@
 
 /*宏定义区*/
 /*标准格式:0x200+电机ID(1-4)*/
-#define GM6020_CTRL_ID_BASE 0x1FF //GM6020控制指令基地址
+#define GM6020_CTRL_ID_BASE 0x1FF 	//GM6020控制指令基地址
 #define M3508_CTRL_ID_BASE  0x200  //M3508控制指令基地址
 
 #define LEFT_FRICTION_ID		0x201	 //左摩擦轮ID=1
@@ -16,6 +16,8 @@
 
 #define YAW_ID							0x208  //YawID=4
 #define PITCH_ID						0x206	 //PitchID=2
+
+#define UNIVERSAL_ID        0x620	 //通用发送
 
 /*电压电流*/
 #define CURRENT_MAX  16384

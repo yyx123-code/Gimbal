@@ -81,7 +81,7 @@ void CAN_Send(uint32_t motor_id, uint8_t *message)
 	uint32_t std_id;
 	uint32_t mailbox;
 	/*CAN总线和发送ID*/
-	if(motor_id == LEFT_FRICTION_ID || motor_id == RIGHT_FRICTION_ID || motor_id == DRIVER_ID)
+	if(motor_id == UNIVERSAL_ID)
 	{
 		hcan = &hcan1;
 		std_id = M3508_CTRL_ID_BASE;

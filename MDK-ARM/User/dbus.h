@@ -4,9 +4,9 @@
 #include <stdint.h>
 /*---------------------PD----------------------*/
 /* ----------- RC Channel Definition --------- */
-#define REMOTE_CH_MAX 		((uint16_t)1684)
-#define REMOTE_CH_MIN 		((uint16_t)364)
-#define REMOTE_CH_OFFSET ((uint16_t)1024)
+//#define REMOTE_CH_MAX 		((uint16_t)1684)
+//#define REMOTE_CH_MIN 		((uint16_t)364)
+//#define REMOTE_CH_OFFSET 	((uint16_t)1024)
 #define RC_FRAME_LENGTH 	18u
 #define DBUS_UART       	huart2
 /* ----------- RC Switch Definition ---------- */

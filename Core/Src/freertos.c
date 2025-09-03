@@ -58,8 +58,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-uint8_t Buffer[RC_FRAME_LENGTH];
-uint8_t recflag = 0;
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -280,11 +279,11 @@ void pid_task(void *argument)
   /* Infinite loop */
   for(;;)
   {
-		Set_Value();
+		Set_Value();//未测试
 //		Yaw_Task();
 //		Pitch_Task();
 //		Driver_Task();
-//		Friction_Task();
+		Friction_Task();
     osDelay(5);
   }
   /* USER CODE END pid_task */
@@ -303,7 +302,7 @@ void can_task(void *argument)
   /* Infinite loop */
   for(;;)
   {
-//		CAN_Task();
+		CAN_Task();
 		osDelay(5);
   }
   /* USER CODE END can_task */
@@ -323,10 +322,7 @@ void remote_task(void *argument)
   /* Infinite loop */
   for(;;)
   {
-//		if(xQueueReceive(DR16Handle, Buffer, portMAX_DELAY) == pdTRUE)
-//		{
-//			Get_DR16_Data(Buffer);
-//		}
+		uint8_t result = Remote_Task();//遥控保护
     osDelay(10);
   }
   /* USER CODE END remote_task */
@@ -349,7 +345,7 @@ void mpu6050_task(void *argument)
 		uint8_t result1 = MPU_DMP_GetData(&pitch, &roll, &yaw);
 		imu_calculate(&Yaw_IMU, yaw, 5);
 		imu_calculate(&Pitch_IMU, pitch, 5);
-		DR16_Data(&dr16,(uint8_t*)SbusRxBuffer);
+		DR16_Data(&dr16,(uint8_t*)SbusRxBuffer);//测试task处理还是中断处理
 		osDelay(5);
   }
   /* USER CODE END mpu6050_task */
