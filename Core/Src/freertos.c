@@ -323,11 +323,10 @@ void remote_task(void *argument)
   /* Infinite loop */
   for(;;)
   {
-		if(xQueueReceive(DR16Handle, Buffer, portMAX_DELAY) == pdTRUE)
-		{
-			Get_DR16_Data(Buffer);
-			recflag = 1;
-		}
+//		if(xQueueReceive(DR16Handle, Buffer, portMAX_DELAY) == pdTRUE)
+//		{
+//			Get_DR16_Data(Buffer);
+//		}
     osDelay(10);
   }
   /* USER CODE END remote_task */
