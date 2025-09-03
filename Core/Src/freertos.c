@@ -349,6 +349,7 @@ void mpu6050_task(void *argument)
 		uint8_t result1 = MPU_DMP_GetData(&pitch, &roll, &yaw);
 		imu_calculate(&Yaw_IMU, yaw, 5);
 		imu_calculate(&Pitch_IMU, pitch, 5);
+		DR16_Data(&dr16,(uint8_t*)SbusRxBuffer);
 		osDelay(5);
   }
   /* USER CODE END mpu6050_task */

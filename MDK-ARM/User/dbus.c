@@ -19,7 +19,6 @@ extern osMessageQueueId_t DR16Handle;
 extern DMA_HandleTypeDef hdma_usart2_rx;
 /* ----------- Function Implements ---------- */ 
 static HAL_StatusTypeDef DMA_Rec(UART_HandleTypeDef* huart, uint8_t* pData, uint32_t Size);
-static void DR16_Data(rc_info_t *rc, uint8_t *buff);
 
 /*初始化*/
 void DBUS_Init(void)
@@ -83,7 +82,7 @@ static HAL_StatusTypeDef DMA_Rec(UART_HandleTypeDef* huart, uint8_t* pData, uint
 }
 
 /*dr16数据解析*/
-static void DR16_Data(rc_info_t *rc, uint8_t *buff)
+void DR16_Data(rc_info_t *rc, uint8_t *buff)
 {
 	static rc_info_t last_rc_info;//保存上一次数据
 	memcpy(&last_rc_info, rc, sizeof(rc_info_t));
@@ -120,13 +119,13 @@ static void DR16_Data(rc_info_t *rc, uint8_t *buff)
     return ;
   }
 
-  rc->mouse.x = buff[6] | (buff[7] << 8); // x axis
-  rc->mouse.y = buff[8] | (buff[9] << 8);
-  rc->mouse.z = buff[10] | (buff[11] << 8);
+//  rc->mouse.x = buff[6] | (buff[7] << 8); // x axis
+//  rc->mouse.y = buff[8] | (buff[9] << 8);
+//  rc->mouse.z = buff[10] | (buff[11] << 8);
 
-  rc->mouse.l = buff[12];
-  rc->mouse.r = buff[13];
+//  rc->mouse.l = buff[12];
+//  rc->mouse.r = buff[13];
 
-  rc->kb.key_code = buff[14] | buff[15] << 8; // key borad code
-  rc->wheel = (buff[16] | buff[17] << 8) - 1024;
+//  rc->kb.key_code = buff[14] | buff[15] << 8; // key borad code
+//  rc->wheel = (buff[16] | buff[17] << 8) - 1024;
 }

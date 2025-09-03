@@ -71,5 +71,9 @@ typedef struct
 
 void DBUS_Init(void);
 void Get_DR16_Data(uint8_t *Buff);
+void DR16_Data(rc_info_t *rc, uint8_t *buff);
+
+extern volatile uint8_t SbusRxBuffer[RC_FRAME_LENGTH];
+extern rc_info_t dr16;
 
 #endif
