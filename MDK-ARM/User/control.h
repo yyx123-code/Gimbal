@@ -6,7 +6,7 @@
 /*遥控通道中间值*/
 //#define CHANNEL_MIDDLE		1500.0f
 #define DR16_CHANNEL				6
-#define CHANNEL_DEAD_ZONE		150
+#define CHANNEL_DEAD_ZONE		200
 
 typedef struct
 {
@@ -30,6 +30,7 @@ void Set_Value(void);
 void GetValue(void);
 void CAN_Transmit(void);
 void EmergencyBrake(void);
+void PIDAllInit(void);
 
 /*遥控超时保护*/
 extern bool changed_flag;
@@ -47,5 +48,7 @@ extern uint8_t read_flag;
 /*IMU数据*/
 extern IMU_t Yaw_IMU;
 extern IMU_t Pitch_IMU;
+extern int16_t friction_left_speed;
+extern int16_t friction_right_speed;
 
 #endif

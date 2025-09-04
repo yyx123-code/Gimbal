@@ -41,6 +41,7 @@
 #define ANGLE_MIN_YAW -30.0f
 #define M3508_TARGET 6000.0f
 #define M3508_START 0.0f
+#define M3508_TARGET_RIGHT -6000.0f;
 /*脉冲数*/
 #define MOTOR_PPR 				8191.0f
 /*拨盘电机参数*/

@@ -87,13 +87,13 @@ void CAN_Send(uint32_t motor_id, uint8_t *message)
 		std_id = M3508_CTRL_ID_BASE;
 		mailbox = CAN_TX_MAILBOX0;	//指定邮箱
   }
-	else if(motor_id == PITCH_ID)
+	if(motor_id == PITCH_ID)
 	{
 		hcan = &hcan1;
 		std_id = GM6020_CTRL_ID_BASE;
 		mailbox = CAN_TX_MAILBOX0;	//指定邮箱
 	}
-	else if(motor_id == YAW_ID)
+	if(motor_id == YAW_ID)
 	{
 		hcan = &hcan2;
 		std_id = GM6020_CTRL_ID_BASE;

@@ -279,10 +279,9 @@ void pid_task(void *argument)
   /* Infinite loop */
   for(;;)
   {
-		Set_Value();//未测试
 //		Yaw_Task();
-//		Pitch_Task();
-//		Driver_Task();
+		Pitch_Task();
+		Driver_Task();
 		Friction_Task();
     osDelay(5);
   }
@@ -365,8 +364,8 @@ void print_task(void *argument)
   for(;;)
   {
 		/*打印*/
-		printf("%f,%f,%f\n", yaw,roll,pitch);
-		Deinit_Task();//重新初始化
+		printf("%d,%d,%d,%d\n", friction_left_speed,friction_right_speed,Friction_Left_Data.speed, -Friction_Right_Data.speed);
+//		Deinit_Task();//重新初始化
 		osDelay(20);
 		/*优化：DMA*/
   }
