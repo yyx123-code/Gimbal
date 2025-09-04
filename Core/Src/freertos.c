@@ -279,11 +279,11 @@ void pid_task(void *argument)
   /* Infinite loop */
   for(;;)
   {
-//		Yaw_Task();
+		Yaw_Task();
 		Pitch_Task();
 		Driver_Task();
 		Friction_Task();
-    osDelay(5);
+    osDelay(6);
   }
   /* USER CODE END pid_task */
 }
@@ -342,9 +342,9 @@ void mpu6050_task(void *argument)
   {
 		/*欧拉角*/
 		uint8_t result1 = MPU_DMP_GetData(&pitch, &roll, &yaw);
-		imu_calculate(&Yaw_IMU, yaw, 5);
-		imu_calculate(&Pitch_IMU, pitch, 5);
-		DR16_Data(&dr16,(uint8_t*)SbusRxBuffer);//测试task处理还是中断处理
+		total_angle_calculate(&Yaw_IMU, yaw, 5);
+		total_angle_calculate(&Pitch_IMU, pitch, 5);
+		DR16_Data(&dr16,(uint8_t*)SbusRxBuffer);//task处理
 		osDelay(5);
   }
   /* USER CODE END mpu6050_task */
@@ -365,7 +365,6 @@ void print_task(void *argument)
   {
 		/*打印*/
 		printf("%d,%d,%d,%d\n", friction_left_speed,friction_right_speed,Friction_Left_Data.speed, -Friction_Right_Data.speed);
-//		Deinit_Task();//重新初始化
 		osDelay(20);
 		/*优化：DMA*/
   }

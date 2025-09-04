@@ -6,11 +6,6 @@
 
 #define FILTER_ALPHA 0.3f // 滤波系数，取值范围0到1
 
-/*角度结构体*/
-Angle_t yaw_angle;
-Angle_t pitch_angle;
-Angle_t driver_angle;
-
 /**
  * @brief 将一个16位的十进制数拆分为高八位和低八位
  * @param value 十进制输入值
@@ -74,33 +69,4 @@ static float filter_value = 0; // 滤波后的角度值
 float LowPassFilter(float new_value)
 {
    return filter_value = FILTER_ALPHA * new_value + (1 - FILTER_ALPHA) * filter_value;
-}
-
-/**
- * @brief 实际转过角度累计(用于角度环多圈处理)
-* @param Angle_t *motor电机结构体指针
- * @param new_angle新角度(0-360)
- * @return total_angle返回转过角度
- */
-void total_angle_calculate(Angle_t *motor, float new_angle)
-{
-  static uint8_t first_run = 1;      // 首次运行标志 
-  // 第一次调用时初始化
-  if(first_run) {
-      motor->last_angle = new_angle;
-      motor->total_angle = 0;
-      first_run = 0;
-  }
-  // 计算角度变化量(处理360度跳变)
-  float delta = new_angle - motor->last_angle;
-  // 处理正向跨越360度的情况
-  if(delta < -180.0f)
-	{delta += 360.0f;} 
-  // 处理反向跨越360度的情况
-  else if(delta > 180.0f)
-	{delta -= 360.0f;}
-  // 更新累计角度
-  motor->total_angle += delta;
-  // 更新上一次角度值
-  motor->last_angle = new_angle;
 }

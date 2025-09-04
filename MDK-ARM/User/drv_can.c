@@ -75,7 +75,7 @@ void CAN_Init(void)
   * @param  motor_id: 电机ID
   * @param  message: 待发送的8字节数据
   */
-void CAN_Send(uint32_t motor_id, uint8_t *message)
+void CAN1_Send(uint32_t motor_id, uint8_t *message)
 {
 	CAN_HandleTypeDef *hcan;
 	uint32_t std_id;
@@ -83,21 +83,13 @@ void CAN_Send(uint32_t motor_id, uint8_t *message)
 	/*CAN总线和发送ID*/
 	if(motor_id == UNIVERSAL_ID)
 	{
-		hcan = &hcan1;
 		std_id = M3508_CTRL_ID_BASE;
-		mailbox = CAN_TX_MAILBOX0;	//指定邮箱
-  }
+		mailbox = CAN_TX_MAILBOX0;
+	}
 	if(motor_id == PITCH_ID)
 	{
-		hcan = &hcan1;
 		std_id = GM6020_CTRL_ID_BASE;
-		mailbox = CAN_TX_MAILBOX0;	//指定邮箱
-	}
-	if(motor_id == YAW_ID)
-	{
-		hcan = &hcan2;
-		std_id = GM6020_CTRL_ID_BASE;
-		mailbox = CAN_TX_MAILBOX1;
+		mailbox = CAN_TX_MAILBOX2;
 	}
 	/* 统一报文头配置 */
 	CAN_TxHeaderTypeDef tx_header =
@@ -109,7 +101,21 @@ void CAN_Send(uint32_t motor_id, uint8_t *message)
 		.RTR = CAN_RTR_DATA,					//发送数据帧
 		.TransmitGlobalTime = DISABLE	//关闭全局时间发送
 	};
-	HAL_CAN_AddTxMessage(hcan, &tx_header, message, &mailbox);
+	HAL_CAN_AddTxMessage(&hcan1, &tx_header, message, &mailbox);
+}
+
+void CAN2_Send(uint8_t *message)
+{
+	CAN_TxHeaderTypeDef CAN2_TxHeader0;
+	uint32_t TxMailBox1;
+	CAN2_TxHeader0.DLC = 8;//数据长度为8字节
+	CAN2_TxHeader0.ExtId = 0;//扩展ID为0
+	CAN2_TxHeader0.IDE = CAN_ID_STD;//标准ID
+	CAN2_TxHeader0.RTR = CAN_RTR_DATA;//发送数据帧
+	CAN2_TxHeader0.StdId = GM6020_CTRL_ID_BASE;//电机ID 1-4的标识符
+	CAN2_TxHeader0.TransmitGlobalTime = DISABLE;//关闭全局时间发送
+	TxMailBox1=CAN_TX_MAILBOX1;//指定邮箱
+	HAL_CAN_AddTxMessage(&hcan2,&CAN2_TxHeader0,message,&TxMailBox1);//发送信息
 }
 
 /*接收函数*/
