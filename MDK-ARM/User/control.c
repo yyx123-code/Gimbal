@@ -451,8 +451,8 @@ void ValueAllInit(void)
 	pid_init(&driver_speed_pid, 1.0f, 0.0f, 0.0f);
 	pid_init(&driver_angle_pid, 1.0f, 0.0f, 0.0f);
 	
-	pid_init(&friction_left_pid, 2.3f, 0.0f, 0.0f);
-	pid_init(&friction_right_pid, 2.3f, 0.0f, 0.0f);
+	pid_init(&friction_left_pid, 3.0f, 0.00100000005f, 0.449999988f);
+	pid_init(&friction_right_pid, 3.0f, 0.00100000005f, 0.449999988f);
 }
 
 void Motor_Init(Angle_t *motor, float CurrentAngle)
