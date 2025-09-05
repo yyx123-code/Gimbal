@@ -322,7 +322,8 @@ void remote_task(void *argument)
   for(;;)
   {
 		uint8_t result = Remote_Task();//遥控保护
-    osDelay(10);
+		DR16_Data(&dr16,(uint8_t*)SbusRxBuffer);//task处理
+    osDelay(5);
   }
   /* USER CODE END remote_task */
 }
@@ -344,7 +345,7 @@ void mpu6050_task(void *argument)
 		uint8_t result1 = MPU_DMP_GetData(&pitch, &roll, &yaw);
 		total_angle_calculate(&Yaw_IMU, yaw, 5);
 		total_angle_calculate(&Pitch_IMU, pitch, 5);
-		DR16_Data(&dr16,(uint8_t*)SbusRxBuffer);//task处理
+//		DR16_Data(&dr16,(uint8_t*)SbusRxBuffer);//task处理
 		osDelay(5);
   }
   /* USER CODE END mpu6050_task */

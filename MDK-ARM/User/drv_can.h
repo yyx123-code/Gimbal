@@ -105,7 +105,7 @@ extern Motor_Mode_t Yaw_Mode;
 extern Motor_Mode_t Pitch_Mode;
 
 void CAN_Init(void);
-void CAN1_Send(uint32_t motor_id, uint8_t *message);
+void CAN1_Send(uint32_t motor_id ,uint8_t *message);
 void CAN2_Send(uint8_t *message);
 void ProcessMotorData(CAN_RxBuffer_t* rx_buf);
 

@@ -25,7 +25,7 @@ void CAN_Init(void)
 	CAN_FilterTypeDef CAN1_Filter0;
 	/*过滤器初始化*/
 	CAN1_Filter0.FilterFIFOAssignment=CAN_FILTER_FIFO0;
-	CAN1_Filter0.FilterScale=CAN_FILTERSCALE_32BIT;
+	CAN1_Filter0.FilterScale=CAN_FILTERSCALE_16BIT;
 	CAN1_Filter0.FilterBank=0;
 	CAN1_Filter0.FilterMode=CAN_FILTERMODE_IDMASK;
 	CAN1_Filter0.FilterActivation=CAN_FILTER_ENABLE;
@@ -33,7 +33,6 @@ void CAN_Init(void)
 	CAN1_Filter0.FilterIdLow=0x0000;
 	CAN1_Filter0.FilterMaskIdHigh=0x0000;
 	CAN1_Filter0.FilterMaskIdLow=0x0000;
-	CAN1_Filter0.SlaveStartFilterBank = 14;//从过滤器组(仅can1)
 	HAL_CAN_ConfigFilter(&hcan1, &CAN1_Filter0);
 	/*错误处理*/
 	if((HAL_CAN_ConfigFilter(&hcan1, &CAN1_Filter0)) != HAL_OK)
@@ -75,22 +74,14 @@ void CAN_Init(void)
   * @param  motor_id: 电机ID
   * @param  message: 待发送的8字节数据
   */
-void CAN1_Send(uint32_t motor_id, uint8_t *message)
+void CAN1_Send(uint32_t motor_id ,uint8_t *message)
 {
 	CAN_HandleTypeDef *hcan;
 	uint32_t std_id;
 	uint32_t mailbox;
-	/*CAN总线和发送ID*/
-	if(motor_id == UNIVERSAL_ID)
-	{
-		std_id = M3508_CTRL_ID_BASE;
-		mailbox = CAN_TX_MAILBOX0;
-	}
-	if(motor_id == PITCH_ID)
-	{
-		std_id = GM6020_CTRL_ID_BASE;
-		mailbox = CAN_TX_MAILBOX2;
-	}
+	std_id = (motor_id == PITCH_ID)?(0x1FF):(M3508_CTRL_ID_BASE);
+//	std_id = M3508_CTRL_ID_BASE;
+	mailbox = CAN_TX_MAILBOX0;
 	/* 统一报文头配置 */
 	CAN_TxHeaderTypeDef tx_header =
 	{

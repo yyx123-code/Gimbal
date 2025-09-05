@@ -3,11 +3,9 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-/*遥控通道中间值*/
-//#define CHANNEL_MIDDLE		1500.0f
+
 #define DR16_CHANNEL				6
 #define CHANNEL_DEAD_ZONE		200
-#define DEFAULT							10
 
 typedef struct
 {
@@ -15,6 +13,7 @@ typedef struct
 	float total_angle;
 	float delta;
 	float speed;
+	uint8_t InitFlag;
 }Angle_t;
 
 void Init_Task(void);
@@ -23,15 +22,12 @@ void Yaw_Task(void);
 void Pitch_Task(void);
 void Driver_Task(void);
 void CAN_Task(void);
-//void Deinit_Task(void);
 void total_angle_calculate(Angle_t *motor, float new_angle,float dt);
-void driver_angle_calculate(Angle_t *motor, float new_angle);
 uint8_t Remote_Task(void);
 uint8_t CheckRemoteSignal(void);
 void GetValue(void);
-void CAN_Transmit(void);
 void ValueAllInit(void);
-void Motor_Init(Angle_t *imu, float initial_angle);
+void Motor_Init(Angle_t *motor, float CurrentAngle);
 
 /*遥控超时保护*/
 extern bool changed_flag;

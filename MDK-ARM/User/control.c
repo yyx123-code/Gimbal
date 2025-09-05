@@ -45,15 +45,14 @@ int16_t pitch_output = 0;
 /*目标*/
 float yaw_target_angle = 0;
 float pitch_target_angle = 0;
-float target_pos = 0;
-uint8_t read_flag = 1;
-/*摩擦轮反向pid重置*/
-uint16_t fri_channel = 0;
+float driver_target_angle = 0;
 int16_t friction_left_speed = 0;
 int16_t friction_right_speed = 0;
 /*拨盘*/
-static Driver_Mode_t Last_Driver_Mode = DRIVER_IDLE;
-static uint8_t shot_triggered = 0;//0:未触发, 1:已触发
+//static Driver_Mode_t Last_Driver_Mode = DRIVER_IDLE;
+//static uint8_t shot_triggered = 0;//0:未触发, 1:已触发
+uint16_t pitch_test = 0;
+
 /*初始化任务*/
 void Init_Task(void)
 {
@@ -91,83 +90,98 @@ void Friction_Task(void)
 void Driver_Task(void)
 {
 	/*计算总共转过的角度*/
-	driver_angle_calculate(&driver_angle, Driver_Data.mechanical_angle);
-	/*判断模式*/
-	if(channel[2] < -CHANNEL_DEAD_ZONE)
-		Driver_Mode = SINGLE_SHOT;//单发
-	else if(channel[2] > CHANNEL_DEAD_ZONE)
-		Driver_Mode = AUTO_FIRE;//连发
-	else
-		Driver_Mode = DRIVER_IDLE;//空闲
-	//模式变化的边沿：从空闲 变为 自动/单发
-	uint8_t single_shot_trigger = (Driver_Mode == SINGLE_SHOT) && (Last_Driver_Mode != SINGLE_SHOT);
-	uint8_t auto_fire_trigger = (Driver_Mode == AUTO_FIRE) && (Last_Driver_Mode != AUTO_FIRE);
-	Last_Driver_Mode = Driver_Mode;//更新上一次状态
-	
-	switch(Driver_Mode)
+	total_angle_calculate(&driver_angle, Driver_Data.mechanical_angle, 5);
+	if(channel[2] < CHANNEL_DEAD_ZONE && channel[2] > -CHANNEL_DEAD_ZONE) 
 	{
-		case DRIVER_IDLE:/*空闲状态 等待指令*/
-			shot_triggered = 0;//重置触发标志
-			if(fabsf(target_pos - driver_angle.total_angle) > 1.0f)//如果电机未到达目标位置
-			{
-				pid_calculate(&driver_angle_pid, target_pos, driver_angle.total_angle);
-				pid_calculate(&driver_speed_pid, driver_angle_pid.out, Driver_Data.speed);
-			}
-			else
-			{
-				driver_speed_pid.out = 0; // 停止电机
-			}
-			break;
-		case SINGLE_SHOT:
-			if(single_shot_trigger == 1 && shot_triggered == 0)
-			{	
-				target_pos += ONE_SHOT;
-				shot_triggered = 1;
-			}
-			/*串级PID*/
-			pid_calculate(&driver_angle_pid, target_pos, driver_angle.total_angle);
-			pid_calculate(&driver_speed_pid, driver_angle_pid.out, Driver_Data.speed);
-			//到达位置就归位空闲状态并停止
-			if(fabsf(driver_angle.total_angle - target_pos) < 1.0f) // 如果电机到达目标位置
-			{
-				driver_speed_pid.out = 0;//停止电机
-				Driver_Mode = DRIVER_IDLE;//切换到空闲模式
-			}
-			break;
-			
-		case AUTO_FIRE:
-			if(auto_fire_trigger == 1 && shot_triggered == 0)
-			{	
-				target_pos += ONE_SHOT;
-				shot_triggered = 1;
-			}
-			/*串级PID*/
-			pid_calculate(&driver_angle_pid, target_pos, driver_angle.total_angle);
-			pid_calculate(&driver_speed_pid, driver_angle_pid.out, Driver_Data.speed);
-			
-			if(fabsf(driver_angle.total_angle - target_pos) < 1.0f)//如果电机到达目标位置
-			{
-				target_pos += ONE_SHOT;//更新目标位置,继续下一次装弹
-			}
-			if(channel[2] < CHANNEL_DEAD_ZONE && channel[2] > -CHANNEL_DEAD_ZONE)//如果遥控器指令结束
-			{
-				Driver_Mode = DRIVER_IDLE; // 切换到空闲模式
-			}
-			break;
+		Motor_Init(&driver_angle, Driver_Data.mechanical_angle);//重置累计角度
+		driver_target_angle = 0.0f;
 	}
+	if(channel[2] > CHANNEL_DEAD_ZONE)
+		driver_target_angle = 1440.0f;
+	/*串级PID*/
+	pid_calculate(&driver_angle_pid, driver_target_angle, driver_angle.total_angle);
+	pid_calculate(&driver_speed_pid, driver_angle_pid.out, Driver_Data.speed);
+//	/*判断模式*/
+//	if(channel[2] < -CHANNEL_DEAD_ZONE)
+//		Driver_Mode = SINGLE_SHOT;//单发
+//	else if(channel[2] > CHANNEL_DEAD_ZONE)
+//		Driver_Mode = AUTO_FIRE;//连发
+//	else
+//		Driver_Mode = DRIVER_IDLE;//空闲
+//	//模式变化的边沿：从空闲 变为 自动/单发
+//	uint8_t single_shot_trigger = (Driver_Mode == SINGLE_SHOT) && (Last_Driver_Mode != SINGLE_SHOT);
+//	uint8_t auto_fire_trigger = (Driver_Mode == AUTO_FIRE) && (Last_Driver_Mode != AUTO_FIRE);
+//	Last_Driver_Mode = Driver_Mode;//更新上一次状态
+//	
+//	switch(Driver_Mode)
+//	{
+//		case DRIVER_IDLE:/*空闲状态 等待指令*/
+//			shot_triggered = 0;//重置触发标志
+//			if(fabsf(target_pos - driver_angle.total_angle) > 1.0f)//如果电机未到达目标位置
+//			{
+//				pid_calculate(&driver_angle_pid, target_pos, driver_angle.total_angle);
+//				pid_calculate(&driver_speed_pid, driver_angle_pid.out, Driver_Data.speed);
+//			}
+//			else
+//			{
+//				driver_speed_pid.out = 0; // 停止电机
+//			}
+//			break;
+//		case SINGLE_SHOT:
+//			if(single_shot_trigger == 1 && shot_triggered == 0)
+//			{	
+//				target_pos += ONE_SHOT;
+//				shot_triggered = 1;
+//			}
+//			/*串级PID*/
+//			pid_calculate(&driver_angle_pid, target_pos, driver_angle.total_angle);
+//			pid_calculate(&driver_speed_pid, driver_angle_pid.out, Driver_Data.speed);
+//			//到达位置就归位空闲状态并停止
+//			if(fabsf(driver_angle.total_angle - target_pos) < 1.0f) // 如果电机到达目标位置
+//			{
+//				driver_speed_pid.out = 0;//停止电机
+//				Driver_Mode = DRIVER_IDLE;//切换到空闲模式
+//			}
+//			break;
+//			
+//		case AUTO_FIRE:
+//			if(auto_fire_trigger == 1 && shot_triggered == 0)
+//			{	
+//				target_pos += ONE_SHOT;
+//				shot_triggered = 1;
+//			}
+//			/*串级PID*/
+//			pid_calculate(&driver_angle_pid, target_pos, driver_angle.total_angle);
+//			pid_calculate(&driver_speed_pid, driver_angle_pid.out, Driver_Data.speed);
+//			
+//			if(fabsf(driver_angle.total_angle - target_pos) < 1.0f)//如果电机到达目标位置
+//			{
+//				target_pos += ONE_SHOT;//更新目标位置,继续下一次装弹
+//			}
+//			if(channel[2] < CHANNEL_DEAD_ZONE && channel[2] > -CHANNEL_DEAD_ZONE)//如果遥控器指令结束
+//			{
+//				Driver_Mode = DRIVER_IDLE; // 切换到空闲模式
+//			}
+//			break;
+//	}
 }
 
 /*Yaw*/
 void Yaw_Task(void)
 {
+	if(channel[0] < CHANNEL_DEAD_ZONE && channel[0] > -CHANNEL_DEAD_ZONE) 
+	{
+		Motor_Init(&Yaw_IMU, yaw);//重置累计角度
+		yaw_target_angle = 0.0f;
+	}
 	if(channel[0] > CHANNEL_DEAD_ZONE)
 		yaw_target_angle = 30.0f;
 	else if(channel[0] < -CHANNEL_DEAD_ZONE)
 		yaw_target_angle = -30.0f;
-	else 
-		yaw_target_angle = 0.0f;
+	/*串级PID*/
 	pid_calculate(&yaw_angle_pid, yaw_target_angle, Yaw_IMU.total_angle);
 	pid_calculate(&yaw_speed_pid, yaw_angle_pid.out, Yaw_IMU.speed);
+	
 //	/*模式切换*/
 //	if(channel[0] < CHANNEL_DEAD_ZONE && channel[0] > -CHANNEL_DEAD_ZONE)
 //	Yaw_Mode = IDLE_MODE;
@@ -223,15 +237,30 @@ void Yaw_Task(void)
 void Pitch_Task(void)
 {
 	/*目标值设定*/
+	if(channel[1] < CHANNEL_DEAD_ZONE && channel[1] > -CHANNEL_DEAD_ZONE) 
+	{
+		Motor_Init(&Pitch_IMU, pitch);//重置累计角度
+		pitch_target_angle = 0.0f;
+	}
 	if(channel[1] > CHANNEL_DEAD_ZONE)
 		pitch_target_angle = 30.0f;
 	else if(channel[1] < -CHANNEL_DEAD_ZONE)
 		pitch_target_angle = -30.0f;
-	else 
-		pitch_target_angle = 0.0f;
-	
+	/*串级PID*/
 	pid_calculate(&pitch_up_angle_pid, pitch_target_angle, Pitch_IMU.total_angle);
 	pid_calculate(&pitch_up_speed_pid, pitch_up_angle_pid.out, Pitch_IMU.speed);
+//	if(channel[1] < CHANNEL_DEAD_ZONE && channel[1] > -CHANNEL_DEAD_ZONE)
+//	{
+//		Motor_Init(&Pitch_IMU, pitch);
+//		pitch_target_angle = 0.0f;
+//	}
+//	else if(channel[1] > CHANNEL_DEAD_ZONE)
+//		pitch_target_angle = 30.0f;
+//	else 
+//		pitch_target_angle = 0.0f;
+//	
+//	pid_calculate(&pitch_up_angle_pid, pitch_target_angle, Pitch_IMU.total_angle);
+//	pid_calculate(&pitch_up_speed_pid, pitch_up_angle_pid.out, Pitch_IMU.speed);
 		
 //	if(channel[1] > CHANNEL_DEAD_ZONE)
 //	{Pitch_Mode = FORWARD;}
@@ -296,13 +325,6 @@ void Pitch_Task(void)
 //			pitch_output = pitch_down_speed_pid.out;
 //		break;
 //	}
-//	/*动态死区参数*/
-//	float base_deadzone = 0.5f;
-//	float dynamic_range = 2.0f;
-//	float sensitivity = 5.0f;
-//	/*动态死区*/
-//	apply_dynamic_deadzone(&pitch_up_speed_pid, base_deadzone, dynamic_range, sensitivity);
-//	apply_dynamic_deadzone(&pitch_down_speed_pid, base_deadzone, dynamic_range, sensitivity);
 }
 
 void CAN_Task(void)
@@ -317,8 +339,7 @@ void CAN_Task(void)
 	/*ID=4 Yaw GM6020*/							
 	DecimalToHex(yaw_speed_pid.out, &message_can2[6], &message_can2[7]);
 	/*ID=2 Pitch GM6020*/
-	DecimalToHex(pitch_up_angle_pid.out, &message_can1_gm6020[2], &message_can1_gm6020[3]);//test
-	//pitch_up_angle_pid.out
+	DecimalToHex(pitch_up_speed_pid.out, &message_can1_gm6020[2], &message_can1_gm6020[3]);
 	/*ID=1 左摩擦轮 M3508*/
 	DecimalToHex(friction_left_pid.out, &message_can1[0], &message_can1[1]);
 	/*ID=2 右摩擦轮 M3508*/
@@ -332,7 +353,9 @@ void CAN_Task(void)
 	{
 		case 1:
 			/*CAN发送*/
-			CAN_Transmit();
+			CAN1_Send(UNIVERSAL_ID, message_can1);
+			CAN1_Send(PITCH_ID, message_can1_gm6020);
+			CAN2_Send(message_can2);
 			break;
 		case 0:
 			break;
@@ -342,51 +365,22 @@ void CAN_Task(void)
 /*角度计算*/
 void total_angle_calculate(Angle_t *motor, float new_angle,float dt)
 {
-	static uint8_t first_run = 1;      // 首次运行标志 
-  //第一次调用时初始化
-  if(first_run) {
-      motor->last_angle = new_angle;
-      motor->total_angle = new_angle;
-      first_run = 0;
+  if(motor->InitFlag)//初始化
+	{
+		motor->last_angle = new_angle;//上次角度
+		motor->total_angle = 0;//累计转过角度置零
+		motor->InitFlag = 0;//初始化完毕
+		return;//不进行后续计算
   }
-  // 计算角度变化量(处理360度跳变)
-  float delta = new_angle - motor->last_angle;
-  // 处理正向跨越360度的情况
-  if(delta < -180.0f)
-	{delta += 360.0f;} 
-  // 处理反向跨越360度的情况
-  else if(delta > 180.0f)
-	{delta -= 360.0f;}
-  // 更新累计角度
-  motor->total_angle += delta;
-  // 更新上一次角度值
-  motor->last_angle = new_angle;
-
+  float delta = new_angle - motor->last_angle;//计算角度变化量(处理360度跳变)
+  if(delta < -180.0f)//正向跨越360度
+		delta += 360.0f;
+  else if(delta > 180.0f)//反向跨越360度
+		delta -= 360.0f;
+  motor->total_angle += delta;//更新累计角度
+	motor->delta = delta;//增量
 	motor->speed = motor->delta / dt;//角速度对时间微分
-
-}
-
-void driver_angle_calculate(Angle_t *motor, float new_angle)
-{
-	static uint8_t first_run = 1;      // 首次运行标志 
-  //第一次调用时初始化
-  if(first_run) {
-      motor->last_angle = new_angle;
-      motor->total_angle = new_angle;
-      first_run = 0;
-  }
-  // 计算角度变化量(处理360度跳变)
-  float delta = new_angle - motor->last_angle;
-  // 处理正向跨越360度的情况
-  if(delta < -180.0f)
-	{delta += 360.0f;} 
-  // 处理反向跨越360度的情况
-  else if(delta > 180.0f)
-	{delta -= 360.0f;}
-  // 更新累计角度
-  motor->total_angle += delta;
-  // 更新上一次角度值
-  motor->last_angle = new_angle;
+  motor->last_angle = new_angle;// 更新上一次角度值
 }
 
 /*遥控超时保护*/
@@ -442,20 +436,8 @@ void GetValue(void)
 	channel[5] = dr16.sw2;
 }
 
-/*整合can发送*/
-void CAN_Transmit(void)
-{
-	CAN1_Send(UNIVERSAL_ID, message_can1);
-	CAN1_Send(PITCH_ID, message_can1_gm6020);
-	CAN2_Send(message_can2);
-}
-
 void ValueAllInit(void)
 {
-	/*角度初始化*/
-//	Motor_Init(&Yaw_IMU, yaw);
-//	Motor_Init(&Pitch_IMU, pitch);
-//	Motor_Init(&driver_angle, Driver_Data.mechanical_angle);
 	/*PID初始化*/
 	pid_init(&yaw_speed_pid, 12.0f, 0.0f, 0.2f);
 	pid_init(&yaw_angle_pid, 4.0f, 0.0f, 0.0f);
@@ -473,10 +455,11 @@ void ValueAllInit(void)
 	pid_init(&friction_right_pid, 2.3f, 0.0f, 0.0f);
 }
 
-void Motor_Init(Angle_t *motor, float initial_angle)
+void Motor_Init(Angle_t *motor, float CurrentAngle)
 {
-	motor->total_angle = 0.0f;
-	motor->last_angle = initial_angle;
+	motor->InitFlag = 1;
+	motor->total_angle = 0.0f;//累计角度置0
+	motor->last_angle = CurrentAngle;//更新当前角度
 	motor->delta = 0.0f;
 	motor->speed = 0.0f;
 }
