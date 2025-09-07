@@ -101,245 +101,102 @@ void Driver_Task(void)
 	/*串级PID*/
 	pid_calculate(&driver_angle_pid, driver_target_angle, driver_angle.total_angle);
 	pid_calculate(&driver_speed_pid, driver_angle_pid.out, Driver_Data.speed);
-//	/*判断模式*/
-//	if(channel[2] < -CHANNEL_DEAD_ZONE)
-//		Driver_Mode = SINGLE_SHOT;//单发
-//	else if(channel[2] > CHANNEL_DEAD_ZONE)
-//		Driver_Mode = AUTO_FIRE;//连发
-//	else
-//		Driver_Mode = DRIVER_IDLE;//空闲
-//	//模式变化的边沿：从空闲 变为 自动/单发
-//	uint8_t single_shot_trigger = (Driver_Mode == SINGLE_SHOT) && (Last_Driver_Mode != SINGLE_SHOT);
-//	uint8_t auto_fire_trigger = (Driver_Mode == AUTO_FIRE) && (Last_Driver_Mode != AUTO_FIRE);
-//	Last_Driver_Mode = Driver_Mode;//更新上一次状态
-//	
-//	switch(Driver_Mode)
-//	{
-//		case DRIVER_IDLE:/*空闲状态 等待指令*/
-//			shot_triggered = 0;//重置触发标志
-//			if(fabsf(target_pos - driver_angle.total_angle) > 1.0f)//如果电机未到达目标位置
-//			{
-//				pid_calculate(&driver_angle_pid, target_pos, driver_angle.total_angle);
-//				pid_calculate(&driver_speed_pid, driver_angle_pid.out, Driver_Data.speed);
-//			}
-//			else
-//			{
-//				driver_speed_pid.out = 0; // 停止电机
-//			}
-//			break;
-//		case SINGLE_SHOT:
-//			if(single_shot_trigger == 1 && shot_triggered == 0)
-//			{	
-//				target_pos += ONE_SHOT;
-//				shot_triggered = 1;
-//			}
-//			/*串级PID*/
-//			pid_calculate(&driver_angle_pid, target_pos, driver_angle.total_angle);
-//			pid_calculate(&driver_speed_pid, driver_angle_pid.out, Driver_Data.speed);
-//			//到达位置就归位空闲状态并停止
-//			if(fabsf(driver_angle.total_angle - target_pos) < 1.0f) // 如果电机到达目标位置
-//			{
-//				driver_speed_pid.out = 0;//停止电机
-//				Driver_Mode = DRIVER_IDLE;//切换到空闲模式
-//			}
-//			break;
-//			
-//		case AUTO_FIRE:
-//			if(auto_fire_trigger == 1 && shot_triggered == 0)
-//			{	
-//				target_pos += ONE_SHOT;
-//				shot_triggered = 1;
-//			}
-//			/*串级PID*/
-//			pid_calculate(&driver_angle_pid, target_pos, driver_angle.total_angle);
-//			pid_calculate(&driver_speed_pid, driver_angle_pid.out, Driver_Data.speed);
-//			
-//			if(fabsf(driver_angle.total_angle - target_pos) < 1.0f)//如果电机到达目标位置
-//			{
-//				target_pos += ONE_SHOT;//更新目标位置,继续下一次装弹
-//			}
-//			if(channel[2] < CHANNEL_DEAD_ZONE && channel[2] > -CHANNEL_DEAD_ZONE)//如果遥控器指令结束
-//			{
-//				Driver_Mode = DRIVER_IDLE; // 切换到空闲模式
-//			}
-//			break;
-//	}
 }
 
 /*Yaw*/
 void Yaw_Task(void)
 {
+	static uint8_t idle = 1,last = 1;
+	static uint32_t last_trigger_time = 0;
+	const uint32_t DEBOUNCE_DELAY = 200;
+	if(Yaw_IMU.InitFlag)
+	{
+		Yaw_IMU.total_angle = 0;
+		Yaw_IMU.InitFlag = 0;
+	}
 	if(channel[0] < CHANNEL_DEAD_ZONE && channel[0] > -CHANNEL_DEAD_ZONE) 
 	{
-		Motor_Init(&Yaw_IMU, yaw);//重置累计角度
-		yaw_target_angle = 0.0f;
+		idle = 1;
 	}
-	if(channel[0] > CHANNEL_DEAD_ZONE)
-		yaw_target_angle = 30.0f;
-	else if(channel[0] < -CHANNEL_DEAD_ZONE)
-		yaw_target_angle = -30.0f;
+	else
+	{
+		idle = 0;
+		if(last)
+		{
+			uint32_t current_time = HAL_GetTick();
+			if(current_time - last_trigger_time > DEBOUNCE_DELAY)
+			{
+				if(channel[0] > CHANNEL_DEAD_ZONE)
+					yaw_target_angle -= 30.0f;
+				else if(channel[0] < -CHANNEL_DEAD_ZONE)
+					yaw_target_angle += 30.0f;
+				last_trigger_time = current_time;
+			}
+			last = 0;
+		}
+	}
 	/*串级PID*/
 	pid_calculate(&yaw_angle_pid, yaw_target_angle, Yaw_IMU.total_angle);
 	pid_calculate(&yaw_speed_pid, yaw_angle_pid.out, Yaw_IMU.speed);
-	
-//	/*模式切换*/
-//	if(channel[0] < CHANNEL_DEAD_ZONE && channel[0] > -CHANNEL_DEAD_ZONE)
-//	Yaw_Mode = IDLE_MODE;
-//	if(channel[0] > CHANNEL_DEAD_ZONE)
-//	Yaw_Mode = FORWARD;
-//	else if(channel[0] < -CHANNEL_DEAD_ZONE)
-//	Yaw_Mode = REVERSE;
-//	else
-//	Yaw_Mode = IDLE_MODE;
-//	switch(Yaw_Mode)
-//	{
-//		case IDLE_MODE:/*空闲状态 等待指令*/
-//			if(fabsf(yaw_target_angle - Yaw_IMU.total_angle) > 1.0f)//如果电机未到达目标位置
-//			{
-//				pid_calculate(&yaw_angle_pid, yaw_target_angle, Yaw_IMU.total_angle);
-//				pid_calculate(&yaw_speed_pid, yaw_angle_pid.out, Yaw_IMU.speed);
-//			}
-//			else
-//			{
-//				yaw_speed_pid.out = 0; // 停止电机
-//			}
-//			break;
-//		case FORWARD:
-//			/*设定目标值*/
-//			yaw_target_angle += ANGLE_MAX_YAW;
-//			/*串级PID*/
-//			pid_calculate(&yaw_angle_pid, yaw_target_angle, Yaw_IMU.total_angle);
-//			pid_calculate(&yaw_speed_pid, yaw_angle_pid.out, Yaw_IMU.speed);
-//			
-//			if(fabsf(Yaw_IMU.total_angle - yaw_target_angle) < 1.0f) // 如果电机到达目标位置
-//			{
-//				yaw_speed_pid.out = 0;//停止电机
-//				Yaw_Mode = IDLE_MODE;//切换到空闲模式
-//			}
-//			break;
-//		case REVERSE:
-//		/*设定目标值*/
-//		yaw_target_angle += ANGLE_MIN_YAW;
-//		/*串级PID*/
-//		pid_calculate(&yaw_angle_pid, yaw_target_angle, Yaw_IMU.total_angle);
-//		pid_calculate(&yaw_speed_pid, yaw_angle_pid.out, Yaw_IMU.speed);
-//		
-//		if(fabsf(Yaw_IMU.total_angle - yaw_target_angle) < 1.0f) // 如果电机到达目标位置
-//		{
-//			yaw_speed_pid.out = 0;//停止电机
-//			Yaw_Mode = IDLE_MODE;//切换到空闲模式
-//		}
-//		break;
-//	}
+	last = idle;
 }
 
 /*Pitch*/
 void Pitch_Task(void)
 {
-	/*目标值设定*/
+	static uint8_t idle = 1,last = 1;
+	static uint32_t last_trigger_time = 0;
+	const uint32_t DEBOUNCE_DELAY = 200;
+	if(Pitch_IMU.InitFlag)
+	{
+		Pitch_IMU.total_angle = 0;
+		Pitch_IMU.InitFlag = 0;
+	}
 	if(channel[1] < CHANNEL_DEAD_ZONE && channel[1] > -CHANNEL_DEAD_ZONE) 
 	{
-		Motor_Init(&Pitch_IMU, pitch);//重置累计角度
-		pitch_target_angle = 0.0f;
+		idle = 1;
 	}
-	if(channel[1] > CHANNEL_DEAD_ZONE)
-		pitch_target_angle = 30.0f;
-	else if(channel[1] < -CHANNEL_DEAD_ZONE)
-		pitch_target_angle = -30.0f;
+	else
+	{
+		idle = 0;
+		if(last)
+		{
+			uint32_t current_time = HAL_GetTick();
+			if(current_time - last_trigger_time > DEBOUNCE_DELAY)
+			{
+				/*软限位*/
+				if(channel[1] > CHANNEL_DEAD_ZONE && pitch < -3.0f)
+					pitch_target_angle -= 30.0f;
+				else
+					pitch_target_angle -= ANGLE_MAX_PITCH - pitch;
+				if(channel[1] < -CHANNEL_DEAD_ZONE && pitch >15.0f)
+					pitch_target_angle += 30.0f;
+				else
+					pitch_target_angle += pitch -ANGLE_MIN_PITCH;
+				
+				last_trigger_time = current_time;
+			}
+			last = 0;
+		}
+	}
 	/*串级PID*/
-	pid_calculate(&pitch_up_angle_pid, pitch_target_angle, Pitch_IMU.total_angle);
-	pid_calculate(&pitch_up_speed_pid, pitch_up_angle_pid.out, Pitch_IMU.speed);
-//	if(channel[1] < CHANNEL_DEAD_ZONE && channel[1] > -CHANNEL_DEAD_ZONE)
-//	{
-//		Motor_Init(&Pitch_IMU, pitch);
-//		pitch_target_angle = 0.0f;
-//	}
-//	else if(channel[1] > CHANNEL_DEAD_ZONE)
-//		pitch_target_angle = 30.0f;
-//	else 
-//		pitch_target_angle = 0.0f;
-//	
-//	pid_calculate(&pitch_up_angle_pid, pitch_target_angle, Pitch_IMU.total_angle);
-//	pid_calculate(&pitch_up_speed_pid, pitch_up_angle_pid.out, Pitch_IMU.speed);
-		
-//	if(channel[1] > CHANNEL_DEAD_ZONE)
-//	{Pitch_Mode = FORWARD;}
-//	else if(channel[1] < -CHANNEL_DEAD_ZONE)
-//	{Pitch_Mode = REVERSE;}
-//	else
-//	{Pitch_Mode = IDLE_MODE;}
-//	switch(Pitch_Mode)
-//	{
-//		case IDLE_MODE:/*空闲状态 等待指令*/
-//			if(fabsf(pitch_target_angle - Pitch_IMU.total_angle) > 1.0f)//如果电机未到达目标位置
-//			{
-//				if(pitch_target_angle == ANGLE_MAX_YAW)
-//				{
-//					pid_calculate(&pitch_up_angle_pid, pitch_target_angle, Pitch_IMU.total_angle);
-//					pid_calculate(&pitch_up_speed_pid, pitch_up_angle_pid.out, Pitch_IMU.speed);
-//					pitch_output = pitch_up_speed_pid.out;
-//				}
-//				else if(pitch_target_angle == ANGLE_MIN_YAW)
-//				{
-//					pid_calculate(&pitch_down_angle_pid, pitch_target_angle, Pitch_IMU.total_angle);
-//					pid_calculate(&pitch_down_speed_pid, pitch_down_angle_pid.out, Pitch_IMU.speed);
-//					pitch_output = pitch_down_speed_pid.out;
-//				}
-//			}
-//			else
-//			{
-//				pitch_up_speed_pid.out = 0;//停止电机
-//				pitch_down_speed_pid.out = 0;
-//			}
-//			break;
-//		case FORWARD:
-//			/*设定目标值*/
-//			pitch_target_angle += ANGLE_MAX_YAW;
-//			/*软限位(提前限制目标值)*/
-//			pitch_target_angle = fmaxf(ANGLE_MIN_PITCH, fminf(pitch_target_angle, ANGLE_MAX_PITCH));
-//			/*串级PID*/
-//			pid_calculate(&pitch_up_angle_pid, pitch_target_angle, Pitch_IMU.total_angle);
-//			pid_calculate(&pitch_up_speed_pid, pitch_up_angle_pid.out, Pitch_IMU.speed);
-//			
-//			if(fabsf(Pitch_IMU.total_angle - pitch_target_angle) < 1.0f) // 如果电机到达目标位置
-//			{
-//				pitch_up_speed_pid.out = 0;//停止电机
-//				Pitch_Mode = IDLE_MODE;//切换到空闲模式
-//			}
-//			pitch_output = pitch_up_speed_pid.out;
-//			break;
-//		case REVERSE:
-//			/*设定目标值*/
-//			pitch_target_angle += ANGLE_MIN_YAW;
-//			/*软限位(提前限制目标值)*/
-//			pitch_target_angle = fmaxf(ANGLE_MIN_PITCH, fminf(pitch_target_angle, ANGLE_MAX_PITCH));
-//			/*串级PID*/
-//			pid_calculate(&pitch_down_angle_pid, pitch_target_angle, Pitch_IMU.total_angle);
-//			pid_calculate(&pitch_down_speed_pid, pitch_down_angle_pid.out, Pitch_IMU.speed);
-//			
-//			if(fabsf(Pitch_IMU.total_angle - pitch_target_angle) < 1.0f) // 如果电机到达目标位置
-//			{
-//				pitch_down_speed_pid.out = 0;//停止电机
-//				Pitch_Mode = IDLE_MODE;//切换到空闲模式
-//			}
-//			pitch_output = pitch_down_speed_pid.out;
-//		break;
-//	}
+	pid_calculate(&pitch_angle_pid, pitch_target_angle, Pitch_IMU.total_angle);
+	pid_calculate(&pitch_speed_pid, pitch_angle_pid.out, Pitch_IMU.speed);
+	last = idle;
 }
 
 void CAN_Task(void)
 {
 	/*统一PID限幅*/
 	yaw_speed_pid.out = Limit_Min_Max(yaw_speed_pid.out, VOLTAGE_MIN, VOLTAGE_MAX);
-	pitch_up_speed_pid.out = Limit_Min_Max(pitch_up_speed_pid.out, VOLTAGE_MIN, VOLTAGE_MAX);
-	pitch_down_speed_pid.out = Limit_Min_Max(pitch_down_speed_pid.out, VOLTAGE_MIN, VOLTAGE_MAX);
+	pitch_speed_pid.out = Limit_Min_Max(pitch_speed_pid.out, VOLTAGE_MIN, VOLTAGE_MAX);
 	driver_speed_pid.out = Limit_Min_Max(driver_speed_pid.out, CURRENT_MIN, CURRENT_MAX);
 	friction_left_pid.out = Limit_Min_Max(friction_left_pid.out, CURRENT_MIN, CURRENT_MAX);
 	friction_right_pid.out = Limit_Min_Max(friction_right_pid.out, CURRENT_MIN, CURRENT_MAX);
 	/*ID=4 Yaw GM6020*/							
 	DecimalToHex(yaw_speed_pid.out, &message_can2[6], &message_can2[7]);
 	/*ID=2 Pitch GM6020*/
-	DecimalToHex(pitch_up_speed_pid.out, &message_can1_gm6020[2], &message_can1_gm6020[3]);
+	DecimalToHex(pitch_speed_pid.out, &message_can1_gm6020[2], &message_can1_gm6020[3]);
 	/*ID=1 左摩擦轮 M3508*/
 	DecimalToHex(friction_left_pid.out, &message_can1[0], &message_can1[1]);
 	/*ID=2 右摩擦轮 M3508*/
@@ -442,11 +299,8 @@ void ValueAllInit(void)
 	pid_init(&yaw_speed_pid, 12.0f, 0.0f, 0.2f);
 	pid_init(&yaw_angle_pid, 4.0f, 0.0f, 0.0f);
 	
-	pid_init(&pitch_up_speed_pid, 20.0f, 0.0f, 0.2f);
-	pid_init(&pitch_up_angle_pid, 10.0f, 0.0f, 0.0f);
-	
-	pid_init(&pitch_down_speed_pid, 1.0f, 0.0f, 0.1f);
-	pid_init(&pitch_down_angle_pid, 1.0f, 0.0f, 0.1f);
+	pid_init(&pitch_speed_pid, 20.0f, 0.0f, 0.2f);
+	pid_init(&pitch_angle_pid, 10.0f, 0.0f, 0.0f);
 	
 	pid_init(&driver_speed_pid, 1.0f, 0.0f, 0.0f);
 	pid_init(&driver_angle_pid, 1.0f, 0.0f, 0.0f);

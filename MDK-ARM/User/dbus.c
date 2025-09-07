@@ -39,7 +39,7 @@ void HAL_UART_IdleCallBack(UART_HandleTypeDef *huart)
 		__HAL_UART_CLEAR_IDLEFLAG(huart);//清除空闲标志
 		HAL_UART_DMAStop(huart);//停止当前DMA传输
 		uint16_t received_len = RC_FRAME_LENGTH - __HAL_DMA_GET_COUNTER(huart->hdmarx);//计算接收到的数据长度
-		if(received_len == RC_FRAME_LENGTH)
+		if(received_len == RC_FRAME_LENGTH && SbusRxBuffer[0] == 0x0F)
 		{
 			Ready = 1;//设置数据就绪标志
 			DR16_Data(&dr16,(uint8_t*)SbusRxBuffer);//
@@ -49,7 +49,10 @@ void HAL_UART_IdleCallBack(UART_HandleTypeDef *huart)
 			portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 		}
 		else
-			HAL_UART_Receive_DMA(huart, (uint8_t*)SbusRxBuffer, RC_FRAME_LENGTH);//重新启动
+			memset((void*)SbusRxBuffer, 0, RC_FRAME_LENGTH);
+		
+		HAL_UART_Receive_DMA(huart, (uint8_t*)SbusRxBuffer, RC_FRAME_LENGTH);//重新启动
+		portYIELD_FROM_ISR(pdFALSE);
 	}
 }
 
@@ -61,6 +64,23 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
 		if(huart->ErrorCode & HAL_UART_ERROR_ORE)
 		{
 			__HAL_UART_CLEAR_OREFLAG(huart);
+			HAL_UART_Receive_DMA(huart, (uint8_t*)SbusRxBuffer, RC_FRAME_LENGTH);
+		}
+		else if(huart->ErrorCode & HAL_UART_ERROR_NE)
+		{
+			__HAL_UART_CLEAR_NEFLAG(huart);
+			HAL_UART_Receive_DMA(huart, (uint8_t*)SbusRxBuffer, RC_FRAME_LENGTH);
+		}
+		else if(huart->ErrorCode & HAL_UART_ERROR_FE)
+		{
+			__HAL_UART_CLEAR_FEFLAG(huart);
+			HAL_UART_Receive_DMA(huart, (uint8_t*)SbusRxBuffer, RC_FRAME_LENGTH);
+		}
+		else
+		{
+            // 其他错误，重新初始化UART
+			HAL_UART_DeInit(huart);
+			HAL_UART_Init(huart);
 			HAL_UART_Receive_DMA(huart, (uint8_t*)SbusRxBuffer, RC_FRAME_LENGTH);
 		}
 	}
