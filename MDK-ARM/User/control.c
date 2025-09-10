@@ -48,10 +48,7 @@ float pitch_target_angle = 0;
 float driver_target_angle = 0;
 int16_t friction_left_speed = 0;
 int16_t friction_right_speed = 0;
-/*拨盘*/
-//static Driver_Mode_t Last_Driver_Mode = DRIVER_IDLE;
-//static uint8_t shot_triggered = 0;//0:未触发, 1:已触发
-uint16_t pitch_test = 0;
+float yaw_last_target = 0.0f;
 
 /*初始化任务*/
 void Init_Task(void)
@@ -106,21 +103,19 @@ void Driver_Task(void)
 /*Yaw*/
 void Yaw_Task(void)
 {
-	static uint8_t idle = 1,last = 1;
-	static uint32_t last_trigger_time = 0;
-	const uint32_t DEBOUNCE_DELAY = 200;
-	if(Yaw_IMU.InitFlag)
+	static uint8_t idle = 1,last = 1;//边沿触发
+	static uint32_t last_trigger_time = 0;//消抖
+	const uint32_t DEBOUNCE_DELAY = 200;//消抖时间
+	if(Yaw_IMU.target_init)//初始化目标值
 	{
-		Yaw_IMU.total_angle = 0;
-		Yaw_IMU.InitFlag = 0;
+		yaw_target_angle = Yaw_IMU.initial_angle;
+		Yaw_IMU.target_init = 0;
 	}
 	if(channel[0] < CHANNEL_DEAD_ZONE && channel[0] > -CHANNEL_DEAD_ZONE) 
-	{
-		idle = 1;
-	}
+		idle = 1;//空闲状态
 	else
 	{
-		idle = 0;
+		idle = 0;//设定目标值状态
 		if(last)
 		{
 			uint32_t current_time = HAL_GetTick();
@@ -136,9 +131,19 @@ void Yaw_Task(void)
 		}
 	}
 	/*串级PID*/
-	pid_calculate(&yaw_angle_pid, yaw_target_angle, Yaw_IMU.total_angle);
-	pid_calculate(&yaw_speed_pid, yaw_angle_pid.out, Yaw_IMU.speed);
+
+//	pid_calculate(&yaw_angle_pid, yaw_target_angle, LowPassFilter(Yaw_IMU.total_angle));
+//	yaw_angle_pid.out = Limit_Min_Max(yaw_angle_pid.out, -100, 100);
+//	pid_calculate(&yaw_speed_pid, yaw_angle_pid.out, Yaw_IMU.speed);
+	
+	/*角度单环*/
+
+	pid_calculate(&yaw_angle_pid, yaw_target_angle - Yaw_IMU.total_angle, Yaw_IMU.speed);
+	
+	if(yaw_target_angle != yaw_last_target)//前馈
+		yaw_angle_pid.out += yaw_angle_pid.kff * (yaw_target_angle - yaw_last_target);
 	last = idle;
+	yaw_last_target = yaw_target_angle;
 }
 
 /*Pitch*/
@@ -147,10 +152,10 @@ void Pitch_Task(void)
 	static uint8_t idle = 1,last = 1;
 	static uint32_t last_trigger_time = 0;
 	const uint32_t DEBOUNCE_DELAY = 200;
-	if(Pitch_IMU.InitFlag)
+	if(Yaw_IMU.target_init)//初始化目标值
 	{
-		Pitch_IMU.total_angle = 0;
-		Pitch_IMU.InitFlag = 0;
+		yaw_target_angle = Yaw_IMU.initial_angle;
+		Yaw_IMU.target_init = 0;
 	}
 	if(channel[1] < CHANNEL_DEAD_ZONE && channel[1] > -CHANNEL_DEAD_ZONE) 
 	{
@@ -165,15 +170,20 @@ void Pitch_Task(void)
 			if(current_time - last_trigger_time > DEBOUNCE_DELAY)
 			{
 				/*软限位*/
-				if(channel[1] > CHANNEL_DEAD_ZONE && pitch < -3.0f)
+//				if(channel[1] > CHANNEL_DEAD_ZONE && pitch < -3.0f)
+//					pitch_target_angle -= 30.0f;
+//				else
+//					pitch_target_angle -= ANGLE_MAX_PITCH - pitch;
+//				if(channel[1] < -CHANNEL_DEAD_ZONE && pitch >15.0f)
+//					pitch_target_angle += 30.0f;
+//				else
+//					pitch_target_angle += pitch -ANGLE_MIN_PITCH;
+				if(channel[1] > CHANNEL_DEAD_ZONE)
 					pitch_target_angle -= 30.0f;
 				else
 					pitch_target_angle -= ANGLE_MAX_PITCH - pitch;
-				if(channel[1] < -CHANNEL_DEAD_ZONE && pitch >15.0f)
+				if(channel[1] < -CHANNEL_DEAD_ZONE)
 					pitch_target_angle += 30.0f;
-				else
-					pitch_target_angle += pitch -ANGLE_MIN_PITCH;
-				
 				last_trigger_time = current_time;
 			}
 			last = 0;
@@ -188,13 +198,14 @@ void Pitch_Task(void)
 void CAN_Task(void)
 {
 	/*统一PID限幅*/
-	yaw_speed_pid.out = Limit_Min_Max(yaw_speed_pid.out, VOLTAGE_MIN, VOLTAGE_MAX);
+	yaw_angle_pid.out = Limit_Min_Max(yaw_angle_pid.out, VOLTAGE_MIN, VOLTAGE_MAX);
+//	yaw_speed_pid.out = Limit_Min_Max(yaw_speed_pid.out, VOLTAGE_MIN, VOLTAGE_MAX);
 	pitch_speed_pid.out = Limit_Min_Max(pitch_speed_pid.out, VOLTAGE_MIN, VOLTAGE_MAX);
 	driver_speed_pid.out = Limit_Min_Max(driver_speed_pid.out, CURRENT_MIN, CURRENT_MAX);
 	friction_left_pid.out = Limit_Min_Max(friction_left_pid.out, CURRENT_MIN, CURRENT_MAX);
 	friction_right_pid.out = Limit_Min_Max(friction_right_pid.out, CURRENT_MIN, CURRENT_MAX);
 	/*ID=4 Yaw GM6020*/							
-	DecimalToHex(yaw_speed_pid.out, &message_can2[6], &message_can2[7]);
+	DecimalToHex(yaw_angle_pid.out, &message_can2[6], &message_can2[7]);
 	/*ID=2 Pitch GM6020*/
 	DecimalToHex(pitch_speed_pid.out, &message_can1_gm6020[2], &message_can1_gm6020[3]);
 	/*ID=1 左摩擦轮 M3508*/
@@ -225,16 +236,20 @@ void total_angle_calculate(Angle_t *motor, float new_angle,float dt)
   if(motor->InitFlag)//初始化
 	{
 		motor->last_angle = new_angle;//上次角度
-		motor->total_angle = 0;//累计转过角度置零
+		motor->initial_angle = new_angle;//初始角度
 		motor->InitFlag = 0;//初始化完毕
 		return;//不进行后续计算
   }
+	
   float delta = new_angle - motor->last_angle;//计算角度变化量(处理360度跳变)
   if(delta < -180.0f)//正向跨越360度
 		delta += 360.0f;
   else if(delta > 180.0f)//反向跨越360度
 		delta -= 360.0f;
-  motor->total_angle += delta;//更新累计角度
+	
+//  motor->total_angle += delta;//更新累计角度
+	
+	motor->total_angle = new_angle - motor->initial_angle;//累计等于当前减初始
 	motor->delta = delta;//增量
 	motor->speed = motor->delta / dt;//角速度对时间微分
   motor->last_angle = new_angle;// 更新上一次角度值
@@ -295,15 +310,26 @@ void GetValue(void)
 
 void ValueAllInit(void)
 {
-	/*PID初始化*/
-	pid_init(&yaw_speed_pid, 12.0f, 0.0f, 0.2f);
-	pid_init(&yaw_angle_pid, 4.0f, 0.0f, 0.0f);
+	Yaw_IMU.InitFlag = 1;//yaw待初始化状态
+	Yaw_IMU.target_init = 1;
 	
-	pid_init(&pitch_speed_pid, 20.0f, 0.0f, 0.2f);
+	/*PID初始化*/
+//	pid_init(&yaw_speed_pid, 0.0f, 0.0f, 0.0f);
+//	pid_init(&yaw_angle_pid, 0.0f, 0.0f, 0.0f);
+
+	/*角度单环*/
+	pid_init(&yaw_speed_pid, 0.0f, 0.0f, 0.0f);
+	pid_init(&yaw_angle_pid, 60.0f, 0.0f, 600.0f);
+	yaw_angle_pid.kff = 9000.0f;
+	
+	pid_init(&pitch_speed_pid, 0.0f, 0.0f, 0.0f);
+	pid_init(&pitch_angle_pid, 0.0f, 0.0f, 0.0f);
+	
+	pid_init(&pitch_speed_pid, 10.0f, 0.0f, 0.2f);
 	pid_init(&pitch_angle_pid, 10.0f, 0.0f, 0.0f);
 	
-	pid_init(&driver_speed_pid, 1.0f, 0.0f, 0.0f);
-	pid_init(&driver_angle_pid, 1.0f, 0.0f, 0.0f);
+	pid_init(&driver_speed_pid, 0.0f, 0.0f, 0.0f);
+	pid_init(&driver_angle_pid, 0.0f, 0.0f, 0.0f);
 	
 	pid_init(&friction_left_pid, 3.0f, 0.00100000005f, 0.449999988f);
 	pid_init(&friction_right_pid, 3.0f, 0.00100000005f, 0.449999988f);

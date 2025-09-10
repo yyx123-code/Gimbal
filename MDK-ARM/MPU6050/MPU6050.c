@@ -183,7 +183,7 @@ uint8_t  MPU_DMP_Init(void)
 		if(res)return 1; 
 		res=mpu_configure_fifo(INV_XYZ_GYRO | INV_XYZ_ACCEL);//设置FIFO
 		if(res)return 2; 
-		res=mpu_set_sample_rate(100);	//设置采样率
+		res=mpu_set_sample_rate(200);	//设置采样率
 		if(res)return 3; 
 		res=dmp_load_motion_driver_firmware();		//加载dmp固件
 		if(res)return 4; 

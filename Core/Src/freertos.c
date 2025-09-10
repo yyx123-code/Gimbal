@@ -83,13 +83,6 @@ const osThreadAttr_t InitTask_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityRealtime7,
 };
-/* Definitions for PIDTask */
-osThreadId_t PIDTaskHandle;
-const osThreadAttr_t PIDTask_attributes = {
-  .name = "PIDTask",
-  .stack_size = 256 * 4,
-  .priority = (osPriority_t) osPriorityHigh,
-};
 /* Definitions for CANTask */
 osThreadId_t CANTaskHandle;
 const osThreadAttr_t CANTask_attributes = {
@@ -109,7 +102,7 @@ osThreadId_t MPU6050TaskHandle;
 const osThreadAttr_t MPU6050Task_attributes = {
   .name = "MPU6050Task",
   .stack_size = 512 * 4,
-  .priority = (osPriority_t) osPriorityRealtime,
+  .priority = (osPriority_t) osPriorityRealtime2,
 };
 /* Definitions for PrintTask */
 osThreadId_t PrintTaskHandle;
@@ -117,6 +110,34 @@ const osThreadAttr_t PrintTask_attributes = {
   .name = "PrintTask",
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityLow,
+};
+/* Definitions for YawTask */
+osThreadId_t YawTaskHandle;
+const osThreadAttr_t YawTask_attributes = {
+  .name = "YawTask",
+  .stack_size = 512 * 4,
+  .priority = (osPriority_t) osPriorityAboveNormal7,
+};
+/* Definitions for PitchTask */
+osThreadId_t PitchTaskHandle;
+const osThreadAttr_t PitchTask_attributes = {
+  .name = "PitchTask",
+  .stack_size = 512 * 4,
+  .priority = (osPriority_t) osPriorityAboveNormal6,
+};
+/* Definitions for FrictionTask */
+osThreadId_t FrictionTaskHandle;
+const osThreadAttr_t FrictionTask_attributes = {
+  .name = "FrictionTask",
+  .stack_size = 256 * 4,
+  .priority = (osPriority_t) osPriorityAboveNormal5,
+};
+/* Definitions for DriverTask */
+osThreadId_t DriverTaskHandle;
+const osThreadAttr_t DriverTask_attributes = {
+  .name = "DriverTask",
+  .stack_size = 256 * 4,
+  .priority = (osPriority_t) osPriorityHigh4,
 };
 /* Definitions for DR16 */
 osMessageQueueId_t DR16Handle;
@@ -140,11 +161,14 @@ const osEventFlagsAttr_t RemoteEvent_attributes = {
 /* USER CODE END FunctionPrototypes */
 
 void StartInitTask(void *argument);
-void pid_task(void *argument);
 void can_task(void *argument);
 void remote_task(void *argument);
 void mpu6050_task(void *argument);
 void print_task(void *argument);
+void yaw_task(void *argument);
+void pitch_task(void *argument);
+void friction_task(void *argument);
+void driver_task(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -215,9 +239,6 @@ void MX_FREERTOS_Init(void) {
   /* creation of InitTask */
   InitTaskHandle = osThreadNew(StartInitTask, NULL, &InitTask_attributes);
 
-  /* creation of PIDTask */
-  PIDTaskHandle = osThreadNew(pid_task, NULL, &PIDTask_attributes);
-
   /* creation of CANTask */
   CANTaskHandle = osThreadNew(can_task, NULL, &CANTask_attributes);
 
@@ -229,6 +250,18 @@ void MX_FREERTOS_Init(void) {
 
   /* creation of PrintTask */
   PrintTaskHandle = osThreadNew(print_task, NULL, &PrintTask_attributes);
+
+  /* creation of YawTask */
+  YawTaskHandle = osThreadNew(yaw_task, NULL, &YawTask_attributes);
+
+  /* creation of PitchTask */
+  PitchTaskHandle = osThreadNew(pitch_task, NULL, &PitchTask_attributes);
+
+  /* creation of FrictionTask */
+  FrictionTaskHandle = osThreadNew(friction_task, NULL, &FrictionTask_attributes);
+
+  /* creation of DriverTask */
+  DriverTaskHandle = osThreadNew(driver_task, NULL, &DriverTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -266,28 +299,6 @@ void StartInitTask(void *argument)
   /* USER CODE END StartInitTask */
 }
 
-/* USER CODE BEGIN Header_pid_task */
-/**
-* @brief Function implementing the PIDTask thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_pid_task */
-void pid_task(void *argument)
-{
-  /* USER CODE BEGIN pid_task */
-  /* Infinite loop */
-  for(;;)
-  {
-		Yaw_Task();
-		Pitch_Task();
-		Driver_Task();
-		Friction_Task();
-    osDelay(6);
-  }
-  /* USER CODE END pid_task */
-}
-
 /* USER CODE BEGIN Header_can_task */
 /**
 * @brief Function implementing the CANTask thread.
@@ -322,7 +333,7 @@ void remote_task(void *argument)
   for(;;)
   {
 		uint8_t result = Remote_Task();//遥控保护
-		DR16_Data(&dr16,(uint8_t*)SbusRxBuffer);//task处理
+		DR16_Data(&dr16,(uint8_t*)SbusRxBuffer);//dr16数据解析
     osDelay(5);
   }
   /* USER CODE END remote_task */
@@ -343,10 +354,9 @@ void mpu6050_task(void *argument)
   {
 		/*欧拉角*/
 		uint8_t result1 = MPU_DMP_GetData(&pitch, &roll, &yaw);
-		total_angle_calculate(&Yaw_IMU, yaw, 5);
-		total_angle_calculate(&Pitch_IMU, pitch, 5);
-//		DR16_Data(&dr16,(uint8_t*)SbusRxBuffer);//task处理
-		osDelay(5);
+		total_angle_calculate(&Yaw_IMU, yaw, 1);
+//		total_angle_calculate(&Pitch_IMU, pitch, 1);
+		osDelay(1);
   }
   /* USER CODE END mpu6050_task */
 }
@@ -365,11 +375,88 @@ void print_task(void *argument)
   for(;;)
   {
 		/*打印*/
-		printf("%d,%d,%d,%d\n", friction_left_speed,friction_right_speed,Friction_Left_Data.speed, -Friction_Right_Data.speed);
-		osDelay(20);
+//		printf("%f,%f,%f,%f,%f,%f\n", yaw_target_angle, Yaw_IMU.total_angle, yaw_angle_pid.out, Yaw_IMU.speed, yaw_speed_pid.out,yaw);
+		printf("%f,%f,%f,%f,%f\n", pitch_target_angle, Pitch_IMU.total_angle, pitch_angle_pid.out, Pitch_IMU.speed, pitch_speed_pid.out);
+		osDelay(3);
 		/*优化：DMA*/
   }
   /* USER CODE END print_task */
+}
+
+/* USER CODE BEGIN Header_yaw_task */
+/**
+* @brief Function implementing the YawTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_yaw_task */
+void yaw_task(void *argument)
+{
+  /* USER CODE BEGIN yaw_task */
+  /* Infinite loop */
+  for(;;)
+  {
+		Yaw_Task();
+    osDelay(1);
+  }
+  /* USER CODE END yaw_task */
+}
+
+/* USER CODE BEGIN Header_pitch_task */
+/**
+* @brief Function implementing the PitchTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_pitch_task */
+void pitch_task(void *argument)
+{
+  /* USER CODE BEGIN pitch_task */
+  /* Infinite loop */
+  for(;;)
+  {
+		Pitch_Task();
+    osDelay(1);
+  }
+  /* USER CODE END pitch_task */
+}
+
+/* USER CODE BEGIN Header_friction_task */
+/**
+* @brief Function implementing the FrictionTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_friction_task */
+void friction_task(void *argument)
+{
+  /* USER CODE BEGIN friction_task */
+  /* Infinite loop */
+  for(;;)
+  {
+		Friction_Task();
+    osDelay(1);
+  }
+  /* USER CODE END friction_task */
+}
+
+/* USER CODE BEGIN Header_driver_task */
+/**
+* @brief Function implementing the DriverTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_driver_task */
+void driver_task(void *argument)
+{
+  /* USER CODE BEGIN driver_task */
+  /* Infinite loop */
+  for(;;)
+  {
+		Driver_Task();
+    osDelay(1);
+  }
+  /* USER CODE END driver_task */
 }
 
 /* Private application code --------------------------------------------------*/

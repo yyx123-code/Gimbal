@@ -4,7 +4,7 @@
 #include "calculate.h"
 #include "drv_can.h"
 
-#define FILTER_ALPHA 0.3f // 滤波系数，取值范围0到1
+#define FILTER_ALPHA 0.9f // 滤波系数，取值范围0到1
 
 /**
  * @brief 将一个16位的十进制数拆分为高八位和低八位

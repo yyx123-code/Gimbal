@@ -9,6 +9,7 @@ typedef struct
   float kp;
 	float ki;
 	float kd;
+	float kff;
 	
 	float target_value;//目标值
 	float feedback_value;//返回值

@@ -14,6 +14,8 @@ typedef struct
 	float delta;
 	float speed;
 	uint8_t InitFlag;
+	float initial_angle;
+	uint8_t target_init;
 }Angle_t;
 
 void Init_Task(void);
@@ -52,4 +54,7 @@ extern int16_t friction_right_speed;
 extern Angle_t yaw_angle;
 extern Angle_t pitch_angle;
 extern Angle_t driver_angle;
+
+extern float yaw_target_angle;
+extern float pitch_target_angle;
 #endif
