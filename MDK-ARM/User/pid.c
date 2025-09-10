@@ -41,7 +41,3 @@ void pid_reset(pid_t *pid)
     pid->i_out = 0;  // 清空积分项
     pid->out = 0;    // 重置输出
 }
-/*本文件代码优化空间：
- *提供位置PID和增量PID作为选择
- *提供拓展函数例如前馈
- */

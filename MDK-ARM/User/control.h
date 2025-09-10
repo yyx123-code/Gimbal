@@ -2,39 +2,20 @@
 #define __CONTROL_H_
 
 #include <stdint.h>
-#include <stdbool.h>
+#include "calculate.h"
 
-#define DR16_CHANNEL				6
 #define CHANNEL_DEAD_ZONE		200
 
-typedef struct
-{
-	float last_angle;
-	float total_angle;
-	float delta;
-	float speed;
-	uint8_t InitFlag;
-	float initial_angle;
-	uint8_t target_init;
-}Angle_t;
-
-void Init_Task(void);
-void Friction_Task(void);
 void Yaw_Task(void);
 void Pitch_Task(void);
-void Driver_Task(void);
-void CAN_Task(void);
-void total_angle_calculate(Angle_t *motor, float new_angle,float dt);
-uint8_t Remote_Task(void);
-uint8_t CheckRemoteSignal(void);
-void GetValue(void);
-void ValueAllInit(void);
-void Motor_Init(Angle_t *motor, float CurrentAngle);
+//void Driver_Task(void);
+void Friction_Task(void);
 
-/*遥控超时保护*/
-extern bool changed_flag;
-extern uint16_t timeout_counter;
-//extern uint16_t last_channel[IBUS_USER_CHANNLES];
+void PID_Init(void);
+void Init_Task(void);
+void CAN_Task(void);
+void Motor_Init(void);
+
 /*can收发数据*/
 extern uint8_t message_can1[8];//friction driver
 extern uint8_t message_can2[8];//yaw
@@ -43,18 +24,11 @@ extern uint8_t message_can1_gm6020[8];//pitch
 extern float pitch;
 extern float roll;
 extern float yaw;
-extern uint8_t read_flag;
-/*IMU数据*/
-extern Angle_t Yaw_IMU;
-extern Angle_t Pitch_IMU;
-
+/*电机目标值*/
 extern int16_t friction_left_speed;
 extern int16_t friction_right_speed;
-/*角度结构体*/
-extern Angle_t yaw_angle;
-extern Angle_t pitch_angle;
-extern Angle_t driver_angle;
-
 extern float yaw_target_angle;
 extern float pitch_target_angle;
+extern float driver_target_angle;
+
 #endif

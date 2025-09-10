@@ -9,11 +9,17 @@
 #include <stdlib.h>  //abs()
 #include <string.h>  //memset()
 #include <math.h>    //abs()
+#include <stdbool.h>
 /* -------------- Internal Data ------------- */ 
 volatile uint8_t SbusRxBuffer[RC_FRAME_LENGTH];
 volatile uint8_t Ready = 0;
 uint8_t transflag = 0;
 rc_info_t dr16;
+/*dr16遥控超时保护*/
+bool changed_flag = false;
+uint16_t timeout_counter = 0;
+int16_t last_channel[DR16_CHANNEL];
+int16_t channel[DR16_CHANNEL];//存储通道数据数组
 /* --------------- Extern Define ------------ */
 extern osMessageQueueId_t DR16Handle;
 extern DMA_HandleTypeDef hdma_usart2_rx;
@@ -145,4 +151,59 @@ void DR16_Data(rc_info_t *rc, uint8_t *buff)
 
 //  rc->kb.key_code = buff[14] | buff[15] << 8; // key borad code
 //  rc->wheel = (buff[16] | buff[17] << 8) - 1024;
+}
+
+/*遥控保护*/
+
+/*整合遥控器数据为数组 用于遥控保护*/
+void GetValue(void)
+{
+	channel[0] = dr16.ch1;
+	channel[1] = dr16.ch2;
+	channel[2] = dr16.ch3;
+	channel[3] = dr16.ch4;
+	channel[4] = dr16.sw1;
+	channel[5] = dr16.sw2;
+}
+
+/*遥控超时保护*/
+uint8_t Remote_Task(void)
+{
+	GetValue();
+	for(int i = 0; i < DR16_CHANNEL;i++)
+	{
+		if(channel[i] != last_channel[i])
+		{
+			changed_flag = true;
+			timeout_counter = 0;
+			break;
+		}
+	}
+	if(changed_flag)
+	{
+		for(int i = 0; i < DR16_CHANNEL;i++)
+		{
+			last_channel[i] = channel[i];
+		}
+	}
+	else 
+		timeout_counter++;
+	if(timeout_counter >= 10)
+		return 1;
+	else
+		return 0;
+}
+
+/*遥控信号检测*/
+uint8_t CheckRemoteSignal(void)
+{
+	/*未上电*/
+	if(channel[4] == 0 && channel[5] == 0)
+	 return 0;
+	/*超时*/
+	else if(Remote_Task())
+		return 0;
+	/*正常工作*/
+	else
+		return 1;
 }

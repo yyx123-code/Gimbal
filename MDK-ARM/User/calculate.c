@@ -70,3 +70,64 @@ float LowPassFilter(float new_value)
 {
    return filter_value = FILTER_ALPHA * new_value + (1 - FILTER_ALPHA) * filter_value;
 }
+
+/**
+ * @brief  实际转过角度累计(用于角度环)
+ * @param  Angle_t *motor电机结构体指针
+ * @param  new_angle新角度(0-360)
+ * @param  dt时间间隔
+ * @return total_angle返回转过角度
+ */
+void total_angle_calculate(Angle_t *motor, float new_angle)
+{
+  if(motor->read_flag == 0)//初始化
+	{
+		motor->last_angle = new_angle;//更新上次角度
+		motor->initial_angle = new_angle;//初始角度(备用)
+		motor->total_angle = 0;//累计角度不含初始
+		motor->delta = 0;//增量清0
+		motor->speed = 0;//速度清0
+		motor->read_flag = 1;//已读取
+  }
+
+  float delta = new_angle - motor->last_angle;//角度变化量
+  if(delta < -180.0f)//处理正向跨越360度的情况
+		delta += 360.0f; 
+  else if(delta > 180.0f)//处理反向跨越360度的情况
+		delta -= 360.0f;
+  
+	motor->delta = delta;//存储增量
+  motor->total_angle += motor->delta;//更新累计角度
+	
+  motor->last_angle = new_angle;//更新上一次角度值
+}
+
+/*角度结构体初始化为0*/
+Angle_t yaw_angle = {
+    .last_angle = 0,
+    .total_angle = 0,
+    .delta = 0,
+    .speed = 0,
+    .initial_angle = 0,
+    .read_flag = 0  // 确保为0
+};
+
+Angle_t pitch_angle = {
+    .last_angle = 0,
+    .total_angle = 0,
+    .delta = 0,
+    .speed = 0,
+    .initial_angle = 0,
+    .read_flag = 0  // 确保为0
+};
+
+Angle_t driver_angle = {
+    .last_angle = 0,
+    .total_angle = 0,
+    .delta = 0,
+    .speed = 0,
+    .initial_angle = 0,
+    .read_flag = 0  // 确保为0
+};
+
+

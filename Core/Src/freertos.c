@@ -312,8 +312,8 @@ void can_task(void *argument)
   /* Infinite loop */
   for(;;)
   {
-		CAN_Task();
-		osDelay(5);
+		CAN_Task();//can发送
+		osDelay(3);
   }
   /* USER CODE END can_task */
 }
@@ -328,13 +328,13 @@ void can_task(void *argument)
 void remote_task(void *argument)
 {
   /* USER CODE BEGIN remote_task */
-	
   /* Infinite loop */
   for(;;)
   {
 		uint8_t result = Remote_Task();//遥控保护
 		DR16_Data(&dr16,(uint8_t*)SbusRxBuffer);//dr16数据解析
-    osDelay(5);
+		Motor_Init();//若数值更新失败可手动更新
+    osDelay(3);
   }
   /* USER CODE END remote_task */
 }
@@ -352,10 +352,13 @@ void mpu6050_task(void *argument)
   /* Infinite loop */
   for(;;)
   {
-		/*欧拉角*/
-		uint8_t result1 = MPU_DMP_GetData(&pitch, &roll, &yaw);
-		total_angle_calculate(&Yaw_IMU, yaw, 1);
-//		total_angle_calculate(&Pitch_IMU, pitch, 1);
+		/*计算总共转过的角度*/
+		total_angle_calculate(&yaw_angle, Yaw_Data.mechanical_angle);
+		total_angle_calculate(&pitch_angle, Pitch_Data.mechanical_angle);
+		total_angle_calculate(&driver_angle, Driver_Data.mechanical_angle);
+		yaw_angle.speed = Yaw_Data.speed;
+		pitch_angle.speed = Pitch_Data.speed;
+		driver_angle.speed = Driver_Data.speed;
 		osDelay(1);
   }
   /* USER CODE END mpu6050_task */
@@ -371,14 +374,26 @@ void mpu6050_task(void *argument)
 void print_task(void *argument)
 {
   /* USER CODE BEGIN print_task */
+	static TickType_t last_wake_time = 0;
+	
   /* Infinite loop */
   for(;;)
   {
-		/*打印*/
-//		printf("%f,%f,%f,%f,%f,%f\n", yaw_target_angle, Yaw_IMU.total_angle, yaw_angle_pid.out, Yaw_IMU.speed, yaw_speed_pid.out,yaw);
-		printf("%f,%f,%f,%f,%f\n", pitch_target_angle, Pitch_IMU.total_angle, pitch_angle_pid.out, Pitch_IMU.speed, pitch_speed_pid.out);
-		osDelay(3);
-		/*优化：DMA*/
+		if(last_wake_time == 0)
+			last_wake_time = xTaskGetTickCount();
+		/*yaw*/
+//		printf("%f,%f\n", yaw_target_angle, yaw_angle.total_angle);
+		/*pitch*/
+//		printf("%f,%f,%f,%f\n", pitch_target_angle, pitch_angle.total_angle, pitch_angle_pid.out, pitch_angle.speed);
+		
+		/*摩擦轮*/
+		printf("%d,%d,%d,%d\n", friction_left_speed, Friction_Left_Data.speed, friction_right_speed, Friction_Right_Data.speed);
+		
+		/*拨盘*/
+//		printf("%f,%f,%f,%f\n", driver_target_angle, driver_angle.total_angle, driver_angle_pid.out, driver_angle.speed);
+		last_wake_time += pdMS_TO_TICKS(10);
+		vTaskDelayUntil(&last_wake_time, pdMS_TO_TICKS(10));
+//		osDelay(10);
   }
   /* USER CODE END print_task */
 }
@@ -453,7 +468,7 @@ void driver_task(void *argument)
   /* Infinite loop */
   for(;;)
   {
-		Driver_Task();
+//		Driver_Task();
     osDelay(1);
   }
   /* USER CODE END driver_task */

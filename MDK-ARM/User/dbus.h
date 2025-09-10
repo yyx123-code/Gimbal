@@ -9,6 +9,7 @@
 //#define REMOTE_CH_OFFSET 	((uint16_t)1024)
 #define RC_FRAME_LENGTH 	18u
 #define DBUS_UART       	huart2
+#define DR16_CHANNEL			6
 /* ----------- RC Switch Definition ---------- */
 //#define RC_SW_UP					((uint16_t)1) 
 //#define RC_SW_DOWN 				((uint16_t)2) 
@@ -72,8 +73,12 @@ typedef struct
 void DBUS_Init(void);
 void Get_DR16_Data(uint8_t *Buff);
 void DR16_Data(rc_info_t *rc, uint8_t *buff);
+void GetValue(void);
+uint8_t Remote_Task(void);
+uint8_t CheckRemoteSignal(void);
 
 extern volatile uint8_t SbusRxBuffer[RC_FRAME_LENGTH];
 extern rc_info_t dr16;
+extern int16_t channel[DR16_CHANNEL];
 
 #endif
