@@ -379,21 +379,17 @@ void print_task(void *argument)
   /* Infinite loop */
   for(;;)
   {
-		if(last_wake_time == 0)
-			last_wake_time = xTaskGetTickCount();
 		/*yaw*/
-//		printf("%f,%f\n", yaw_target_angle, yaw_angle.total_angle);
+		printf("%f,%f,%f,%f,%d,%d\n", yaw_target_angle, yaw_angle.total_angle, pitch_target_angle, pitch_angle.total_angle, friction_left_speed, Friction_Left_Data.speed);
 		/*pitch*/
 //		printf("%f,%f,%f,%f\n", pitch_target_angle, pitch_angle.total_angle, pitch_angle_pid.out, pitch_angle.speed);
 		
 		/*摩擦轮*/
-		printf("%d,%d,%d,%d\n", friction_left_speed, Friction_Left_Data.speed, friction_right_speed, Friction_Right_Data.speed);
+//		printf("%d,%d,%d,%d\n", friction_left_speed, Friction_Left_Data.speed, friction_right_speed, Friction_Right_Data.speed);
 		
 		/*拨盘*/
 //		printf("%f,%f,%f,%f\n", driver_target_angle, driver_angle.total_angle, driver_angle_pid.out, driver_angle.speed);
-		last_wake_time += pdMS_TO_TICKS(10);
-		vTaskDelayUntil(&last_wake_time, pdMS_TO_TICKS(10));
-//		osDelay(10);
+		osDelay(10);
   }
   /* USER CODE END print_task */
 }

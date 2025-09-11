@@ -28,6 +28,9 @@ float pitch_last_target = 0.0f;
 float yaw_ff_out = 0;
 float pitch_ff_out = 0;
 
+Pitch_Mode_t pitch_mode;
+float pitch_output = 0;
+
 /*Yaw*/
 void Yaw_Task(void)
 {
@@ -86,20 +89,38 @@ void Pitch_Task(void)
 			if(current_time - last_trigger_time > DEBOUNCE_DELAY)//消抖
 			{
 				if(channel[1] > CHANNEL_DEAD_ZONE)
+				{
 					pitch_target_angle -= 30.0f;
+					pitch_mode = up;
+				}
 				else if(channel[1] < -CHANNEL_DEAD_ZONE)
+				{
 					pitch_target_angle += 30.0f;
+					pitch_mode = down;
+				}
 				last_trigger_time = current_time;//上次触发时间
 			}
 			last = 0;
 		}
 	}
-	/*串级PID*/
-	pid_calculate(&pitch_angle_pid, pitch_target_angle, pitch_angle.total_angle);//角度环
-	pitch_angle_pid.i_out = Limit_Min_Max(pitch_angle_pid.i_out, -5, 5);
-	pitch_angle_pid.out = Limit_Min_Max(pitch_angle_pid.out, -100, 100);//角度环限幅
-	pid_calculate(&pitch_speed_pid, pitch_angle_pid.out, pitch_angle.speed);//速度环
-	
+	switch(pitch_mode)
+	{
+		case up:
+			/*串级PID*/
+			pid_calculate(&pitch_angle_pid, pitch_target_angle, pitch_angle.total_angle);//角度环
+			pitch_angle_pid.i_out = Limit_Min_Max(pitch_angle_pid.i_out, -5, 5);
+			pitch_angle_pid.out = Limit_Min_Max(pitch_angle_pid.out, -100, 100);//角度环限幅
+			pid_calculate(&pitch_speed_pid, pitch_angle_pid.out, pitch_angle.speed);//速度环
+			pitch_output = pitch_speed_pid.out;
+			break;
+		case down:
+			pid_calculate(&pitch_angle_pid_down, pitch_target_angle, pitch_angle.total_angle);//角度环
+			pitch_angle_pid_down.i_out = Limit_Min_Max(pitch_angle_pid_down.i_out, -5, 5);
+			pitch_angle_pid_down.out = Limit_Min_Max(pitch_angle_pid_down.out, -100, 100);//角度环限幅
+			pid_calculate(&pitch_speed_pid_down, pitch_angle_pid_down.out, pitch_angle.speed);//速度环
+			pitch_output = pitch_speed_pid_down.out;
+			break;
+	}
 	if(pitch_target_angle != pitch_last_target)//前馈
 		pitch_ff_out = pitch_angle_pid.kff * (pitch_target_angle - pitch_last_target);
 	pitch_speed_pid.out += pitch_ff_out;
@@ -165,11 +186,14 @@ void Friction_Task(void)
 void PID_Init(void)
 {
 	/*PID初始化*/
-	pid_init(&yaw_speed_pid, 2200.0f, 0.0f, 0.0f);
-	pid_init(&yaw_angle_pid, 1.0f, 0.001f, 0.0f);
+	pid_init(&yaw_speed_pid, 1320.0f, 0.0f, 200.0f);
+	pid_init(&yaw_angle_pid, 1.63327003f, 0.030237004f, 2.6900006f);
 	
 	pid_init(&pitch_speed_pid, 500.0f, 0.0f, 70.0f);
-	pid_init(&pitch_angle_pid, 1.0f, 0.02f, 0.0f);
+	pid_init(&pitch_angle_pid, 1.711f, 0.021f, 0.154f);
+	
+	pid_init(&pitch_speed_pid_down, 380.0f, 0.0f, 20.0f);
+	pid_init(&pitch_angle_pid_down, 0.8f, 0.06f, 0.0f);
 	
 	pid_init(&driver_speed_pid, 0.0f, 0.0f, 0.0f);
 	pid_init(&driver_angle_pid, 0.0f, 0.0f, 0.0f);
@@ -190,13 +214,13 @@ void CAN_Task(void)
 {
 	/*统一PID限幅*/
 	yaw_speed_pid.out = Limit_Min_Max(yaw_speed_pid.out, VOLTAGE_MIN, VOLTAGE_MAX);
-	pitch_speed_pid.out = Limit_Min_Max(pitch_speed_pid.out, VOLTAGE_MIN, VOLTAGE_MAX);
+	pitch_output = Limit_Min_Max(pitch_output, VOLTAGE_MIN, VOLTAGE_MAX);
 	driver_speed_pid.out = Limit_Min_Max(driver_speed_pid.out, CURRENT_MIN, CURRENT_MAX);
 	friction_left_pid.out = Limit_Min_Max(friction_left_pid.out, CURRENT_MIN, CURRENT_MAX);
 	friction_right_pid.out = Limit_Min_Max(friction_right_pid.out, CURRENT_MIN, CURRENT_MAX);
 	/*can发送信息*/
 	DecimalToHex(yaw_speed_pid.out, &message_can2[6], &message_can2[7]);/*ID=4 Yaw GM6020*/
-	DecimalToHex(pitch_speed_pid.out, &message_can1_gm6020[2], &message_can1_gm6020[3]);/*ID=2 Pitch GM6020*/
+	DecimalToHex(pitch_output, &message_can1_gm6020[2], &message_can1_gm6020[3]);/*ID=2 Pitch GM6020*/
 	DecimalToHex(friction_left_pid.out, &message_can1[0], &message_can1[1]);/*ID=1 左摩擦轮 M3508*/
 	DecimalToHex(-friction_right_pid.out, &message_can1[2], &message_can1[3]);/*ID=2 右摩擦轮 M3508*/
 	DecimalToHex(driver_speed_pid.out, &message_can1[4], &message_can1[5]);/*ID=3 拨盘电机 M2006 空载500rpm*/

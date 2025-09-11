@@ -6,6 +6,7 @@ pid_t yaw_speed_pid, yaw_angle_pid;
 pid_t pitch_speed_pid, pitch_angle_pid;
 pid_t driver_speed_pid, driver_angle_pid;
 pid_t friction_left_pid, friction_right_pid;
+pid_t pitch_speed_pid_down, pitch_angle_pid_down;
 
 //pid参数初始化
 void pid_init(pid_t *pid, float kp, float ki, float kd)

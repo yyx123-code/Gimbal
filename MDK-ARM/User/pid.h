@@ -31,7 +31,6 @@ extern pid_t yaw_speed_pid, yaw_angle_pid;
 extern pid_t pitch_speed_pid, pitch_angle_pid;
 extern pid_t driver_speed_pid, driver_angle_pid;
 extern pid_t friction_left_pid, friction_right_pid;
-
-
+extern pid_t pitch_speed_pid_down, pitch_angle_pid_down;
 
 #endif

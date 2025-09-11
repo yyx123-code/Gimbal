@@ -6,6 +6,12 @@
 
 #define CHANNEL_DEAD_ZONE		200
 
+typedef enum
+{
+	up,
+	down
+}Pitch_Mode_t;
+
 void Yaw_Task(void);
 void Pitch_Task(void);
 //void Driver_Task(void);
