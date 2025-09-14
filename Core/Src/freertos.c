@@ -22,7 +22,7 @@
 #include "task.h"
 #include "main.h"
 #include "cmsis_os.h"
-
+#include "semphr.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 /*mpu6050*/
@@ -97,12 +97,12 @@ const osThreadAttr_t RemoteTask_attributes = {
   .stack_size = 256 * 4,
   .priority = (osPriority_t) osPriorityRealtime1,
 };
-/* Definitions for MPU6050Task */
-osThreadId_t MPU6050TaskHandle;
-const osThreadAttr_t MPU6050Task_attributes = {
-  .name = "MPU6050Task",
+/* Definitions for AngleCalculateT */
+osThreadId_t AngleCalculateTHandle;
+const osThreadAttr_t AngleCalculateT_attributes = {
+  .name = "AngleCalculateT",
   .stack_size = 512 * 4,
-  .priority = (osPriority_t) osPriorityRealtime2,
+  .priority = (osPriority_t) osPriorityRealtime,
 };
 /* Definitions for PrintTask */
 osThreadId_t PrintTaskHandle;
@@ -136,13 +136,49 @@ const osThreadAttr_t FrictionTask_attributes = {
 osThreadId_t DriverTaskHandle;
 const osThreadAttr_t DriverTask_attributes = {
   .name = "DriverTask",
-  .stack_size = 256 * 4,
+  .stack_size = 512 * 4,
   .priority = (osPriority_t) osPriorityHigh4,
+};
+/* Definitions for CAN1ProcessTask */
+osThreadId_t CAN1ProcessTaskHandle;
+const osThreadAttr_t CAN1ProcessTask_attributes = {
+  .name = "CAN1ProcessTask",
+  .stack_size = 256 * 4,
+  .priority = (osPriority_t) osPriorityHigh2,
+};
+/* Definitions for CAN2ProcessTask */
+osThreadId_t CAN2ProcessTaskHandle;
+const osThreadAttr_t CAN2ProcessTask_attributes = {
+  .name = "CAN2ProcessTask",
+  .stack_size = 256 * 4,
+  .priority = (osPriority_t) osPriorityHigh3,
+};
+/* Definitions for DR16DataTask */
+osThreadId_t DR16DataTaskHandle;
+const osThreadAttr_t DR16DataTask_attributes = {
+  .name = "DR16DataTask",
+  .stack_size = 256 * 4,
+  .priority = (osPriority_t) osPriorityRealtime2,
 };
 /* Definitions for DR16 */
 osMessageQueueId_t DR16Handle;
 const osMessageQueueAttr_t DR16_attributes = {
   .name = "DR16"
+};
+/* Definitions for CAN1 */
+osMessageQueueId_t CAN1Handle;
+const osMessageQueueAttr_t CAN1_attributes = {
+  .name = "CAN1"
+};
+/* Definitions for CAN2 */
+osMessageQueueId_t CAN2Handle;
+const osMessageQueueAttr_t CAN2_attributes = {
+  .name = "CAN2"
+};
+/* Definitions for dr16_mutex */
+osMutexId_t dr16_mutexHandle;
+const osMutexAttr_t dr16_mutex_attributes = {
+  .name = "dr16_mutex"
 };
 /* Definitions for xMotorDataMutex */
 osSemaphoreId_t xMotorDataMutexHandle;
@@ -163,12 +199,15 @@ const osEventFlagsAttr_t RemoteEvent_attributes = {
 void StartInitTask(void *argument);
 void can_task(void *argument);
 void remote_task(void *argument);
-void mpu6050_task(void *argument);
+void angle_claculate_task(void *argument);
 void print_task(void *argument);
 void yaw_task(void *argument);
 void pitch_task(void *argument);
 void friction_task(void *argument);
 void driver_task(void *argument);
+void can1_process_task(void *argument);
+void can2_process_task(void *argument);
+void dr16_data_task(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -210,6 +249,9 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
 
   /* USER CODE END Init */
+  /* Create the mutex(es) */
+  /* creation of dr16_mutex */
+  dr16_mutexHandle = osMutexNew(&dr16_mutex_attributes);
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
@@ -229,7 +271,13 @@ void MX_FREERTOS_Init(void) {
 
   /* Create the queue(s) */
   /* creation of DR16 */
-  DR16Handle = osMessageQueueNew (64, sizeof(uint16_t), &DR16_attributes);
+  DR16Handle = osMessageQueueNew (5, sizeof(RC_FRAME_LENGTH), &DR16_attributes);
+
+  /* creation of CAN1 */
+  CAN1Handle = osMessageQueueNew (10, sizeof(CAN_RxBuffer_t), &CAN1_attributes);
+
+  /* creation of CAN2 */
+  CAN2Handle = osMessageQueueNew (10, sizeof(CAN_RxBuffer_t), &CAN2_attributes);
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
@@ -245,8 +293,8 @@ void MX_FREERTOS_Init(void) {
   /* creation of RemoteTask */
   RemoteTaskHandle = osThreadNew(remote_task, NULL, &RemoteTask_attributes);
 
-  /* creation of MPU6050Task */
-  MPU6050TaskHandle = osThreadNew(mpu6050_task, NULL, &MPU6050Task_attributes);
+  /* creation of AngleCalculateT */
+  AngleCalculateTHandle = osThreadNew(angle_claculate_task, NULL, &AngleCalculateT_attributes);
 
   /* creation of PrintTask */
   PrintTaskHandle = osThreadNew(print_task, NULL, &PrintTask_attributes);
@@ -263,11 +311,19 @@ void MX_FREERTOS_Init(void) {
   /* creation of DriverTask */
   DriverTaskHandle = osThreadNew(driver_task, NULL, &DriverTask_attributes);
 
+  /* creation of CAN1ProcessTask */
+  CAN1ProcessTaskHandle = osThreadNew(can1_process_task, NULL, &CAN1ProcessTask_attributes);
+
+  /* creation of CAN2ProcessTask */
+  CAN2ProcessTaskHandle = osThreadNew(can2_process_task, NULL, &CAN2ProcessTask_attributes);
+
+  /* creation of DR16DataTask */
+  DR16DataTaskHandle = osThreadNew(dr16_data_task, NULL, &DR16DataTask_attributes);
+
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
 
-  /* Create the event(s) */
   /* creation of RemoteEvent */
   RemoteEventHandle = osEventFlagsNew(&RemoteEvent_attributes);
 
@@ -332,23 +388,22 @@ void remote_task(void *argument)
   for(;;)
   {
 		uint8_t result = Remote_Task();//遥控保护
-		DR16_Data(&dr16,(uint8_t*)SbusRxBuffer);//dr16数据解析
 		Motor_Init();//若数值更新失败可手动更新
     osDelay(3);
   }
   /* USER CODE END remote_task */
 }
 
-/* USER CODE BEGIN Header_mpu6050_task */
+/* USER CODE BEGIN Header_angle_claculate_task */
 /**
-* @brief Function implementing the MPU6050Task thread.
+* @brief Function implementing the AngleCalculateT thread.
 * @param argument: Not used
 * @retval None
 */
-/* USER CODE END Header_mpu6050_task */
-void mpu6050_task(void *argument)
+/* USER CODE END Header_angle_claculate_task */
+void angle_claculate_task(void *argument)
 {
-  /* USER CODE BEGIN mpu6050_task */
+  /* USER CODE BEGIN angle_claculate_task */
   /* Infinite loop */
   for(;;)
   {
@@ -359,9 +414,9 @@ void mpu6050_task(void *argument)
 		yaw_angle.speed = Yaw_Data.speed;
 		pitch_angle.speed = Pitch_Data.speed;
 		driver_angle.speed = Driver_Data.speed;
-		osDelay(1);
+    osDelay(1);
   }
-  /* USER CODE END mpu6050_task */
+  /* USER CODE END angle_claculate_task */
 }
 
 /* USER CODE BEGIN Header_print_task */
@@ -374,19 +429,11 @@ void mpu6050_task(void *argument)
 void print_task(void *argument)
 {
   /* USER CODE BEGIN print_task */
-	static TickType_t last_wake_time = 0;
-	
   /* Infinite loop */
   for(;;)
   {
 		/*yaw*/
 		printf("%f,%f,%f,%f,%d,%d\n", yaw_target_angle, yaw_angle.total_angle, pitch_target_angle, pitch_angle.total_angle, friction_left_speed, Friction_Left_Data.speed);
-		/*pitch*/
-//		printf("%f,%f,%f,%f\n", pitch_target_angle, pitch_angle.total_angle, pitch_angle_pid.out, pitch_angle.speed);
-		
-		/*摩擦轮*/
-//		printf("%d,%d,%d,%d\n", friction_left_speed, Friction_Left_Data.speed, friction_right_speed, Friction_Right_Data.speed);
-		
 		/*拨盘*/
 //		printf("%f,%f,%f,%f\n", driver_target_angle, driver_angle.total_angle, driver_angle_pid.out, driver_angle.speed);
 		osDelay(10);
@@ -464,10 +511,80 @@ void driver_task(void *argument)
   /* Infinite loop */
   for(;;)
   {
-//		Driver_Task();
+		Driver_Task();
     osDelay(1);
   }
   /* USER CODE END driver_task */
+}
+
+/* USER CODE BEGIN Header_can1_process_task */
+/**
+* @brief Function implementing the CAN1ProcessTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_can1_process_task */
+void can1_process_task(void *argument)
+{
+  /* USER CODE BEGIN can1_process_task */
+	CAN_RxBuffer_t rx_msg;
+  /* Infinite loop */
+  for(;;)
+  {
+		if(xQueueReceive(CAN1Handle, &rx_msg, portMAX_DELAY) == pdPASS)
+			ProcessMotorData(&rx_msg);
+    osDelay(1);
+  }
+  /* USER CODE END can1_process_task */
+}
+
+/* USER CODE BEGIN Header_can2_process_task */
+/**
+* @brief Function implementing the CAN2ProcessTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_can2_process_task */
+void can2_process_task(void *argument)
+{
+  /* USER CODE BEGIN can2_process_task */
+	CAN_RxBuffer_t rx_msg;
+  /* Infinite loop */
+  for(;;)
+  {
+		if(xQueueReceive(CAN2Handle, &rx_msg, portMAX_DELAY) == pdPASS)
+			ProcessMotorData(&rx_msg);
+    osDelay(1);
+  }
+  /* USER CODE END can2_process_task */
+}
+
+/* USER CODE BEGIN Header_dr16_data_task */
+/**
+* @brief Function implementing the DR16DataTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_dr16_data_task */
+void dr16_data_task(void *argument)
+{
+  /* USER CODE BEGIN dr16_data_task */
+	uint8_t *dr16_data;
+  /* Infinite loop */
+  for(;;)
+  {
+		if(xQueueReceive(DR16Handle, &dr16_data, portMAX_DELAY) == pdPASS)
+			{
+				if(xSemaphoreTake(dr16_mutexHandle, portMAX_DELAY) == pdTRUE)
+				{
+					DR16_Data(&dr16, dr16_data);
+					xSemaphoreGive(dr16_mutexHandle);
+				}
+				vPortFree(dr16_data);
+			}
+    osDelay(1);
+  }
+  /* USER CODE END dr16_data_task */
 }
 
 /* Private application code --------------------------------------------------*/

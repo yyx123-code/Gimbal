@@ -48,17 +48,18 @@ void HAL_UART_IdleCallBack(UART_HandleTypeDef *huart)
 		if(received_len == RC_FRAME_LENGTH && SbusRxBuffer[0] == 0x0F)
 		{
 			Ready = 1;//设置数据就绪标志
-			DR16_Data(&dr16,(uint8_t*)SbusRxBuffer);//
+			uint8_t *dr16_data = pvPortMalloc(RC_FRAME_LENGTH);
+			if(dr16_data != NULL)
+				memcpy(dr16_data, (void*)SbusRxBuffer, RC_FRAME_LENGTH);
 			BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-//			BaseType_t TransRes = xQueueSendFromISR(DR16Handle, (void*)SbusRxBuffer, &xHigherPriorityTaskWoken);
 			HAL_UART_Receive_DMA(huart, (uint8_t*)SbusRxBuffer, RC_FRAME_LENGTH);//重新启动DMA
+			xQueueSendFromISR(DR16Handle, &dr16_data, &xHigherPriorityTaskWoken);
 			portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 		}
 		else
 			memset((void*)SbusRxBuffer, 0, RC_FRAME_LENGTH);
 		
 		HAL_UART_Receive_DMA(huart, (uint8_t*)SbusRxBuffer, RC_FRAME_LENGTH);//重新启动
-		portYIELD_FROM_ISR(pdFALSE);
 	}
 }
 

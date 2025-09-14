@@ -14,7 +14,7 @@ typedef enum
 
 void Yaw_Task(void);
 void Pitch_Task(void);
-//void Driver_Task(void);
+void Driver_Task(void);
 void Friction_Task(void);
 
 void PID_Init(void);

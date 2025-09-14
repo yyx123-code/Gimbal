@@ -2,6 +2,11 @@
 #include "can.h"
 #include "drv_can.h"
 #include <stdint.h>
+#include <string.h>
+#include "FreeRTOS.h"
+#include "task.h"
+#include "cmsis_os2.h"
+#include "queue.h"
 
 /*CAN缓存*/
 CAN_RxBuffer_t can1_rx_buffer;
@@ -17,6 +22,9 @@ Driver_Mode_t Driver_Mode;
 /*云台电机*/
 Motor_Mode_t Yaw_Mode;
 Motor_Mode_t Pitch_Mode;
+
+extern osMessageQueueId_t CAN1Handle;
+extern osMessageQueueId_t CAN2Handle;
 
 /*can初始化*/
 void CAN_Init(void)
@@ -114,32 +122,37 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {
   CAN_RxHeaderTypeDef rx_header;
   uint8_t             rx_data[8];
+	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 	if(hcan == &hcan1)
 	{
 		/*FIFO0读取信息*/
 		HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &rx_header, rx_data); 
-		can1_rx_buffer.length = rx_header.DLC;
-		can1_rx_buffer.id = (rx_header.IDE == CAN_ID_STD) ? rx_header.StdId : rx_header.ExtId;
+		CAN_RxBuffer_t can1_msg;
+		can1_msg.length = rx_header.DLC;
+		can1_msg.id = (rx_header.IDE == CAN_ID_STD) ? rx_header.StdId : rx_header.ExtId;
 		/*储存数据(使用安全拷贝)*/
-		ARM_MPU_OrderedMemcpy((volatile uint32_t*)can1_rx_buffer.data,
-                     (const uint32_t*)rx_data,
-                     (rx_header.DLC + 3) / 4);
-		/*提取数据*/
-		ProcessMotorData(&can1_rx_buffer);
+//		ARM_MPU_OrderedMemcpy((volatile uint32_t*)can1_rx_buffer.data,
+//                     (const uint32_t*)rx_data,
+//                     (rx_header.DLC + 3) / 4);
+		memcpy(can1_msg.data, rx_data, rx_header.DLC);
+		xQueueSendFromISR(CAN1Handle, &can1_msg, &xHigherPriorityTaskWoken);
+		portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 	}
 	/*CAN2*/
 	else if(hcan == &hcan2)
 	{
 		/*FIFO0读取信息*/
 		HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &rx_header, rx_data); 
-		can2_rx_buffer.length = rx_header.DLC;
-		can2_rx_buffer.id = (rx_header.IDE == CAN_ID_STD) ? rx_header.StdId : rx_header.ExtId;
+		CAN_RxBuffer_t can2_msg;
+		can2_msg.length = rx_header.DLC;
+		can2_msg.id = (rx_header.IDE == CAN_ID_STD) ? rx_header.StdId : rx_header.ExtId;
 		/*储存数据(使用安全拷贝)*/
-		ARM_MPU_OrderedMemcpy((volatile uint32_t*)can2_rx_buffer.data,
-                     (const uint32_t*)rx_data,
-                     (rx_header.DLC + 3) / 4);
-		/*提取数据*/
-		ProcessMotorData(&can2_rx_buffer);
+//		ARM_MPU_OrderedMemcpy((volatile uint32_t*)can2_rx_buffer.data,
+//                     (const uint32_t*)rx_data,
+//                     (rx_header.DLC + 3) / 4);
+		memcpy(can2_msg.data, rx_data, rx_header.DLC);
+		xQueueSendFromISR(CAN2Handle, &can2_msg, &xHigherPriorityTaskWoken);
+		portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 	}
 }
 

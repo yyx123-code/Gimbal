@@ -130,36 +130,37 @@ void Pitch_Task(void)
 }
 
 /*拨盘电机*/
-//void Driver_Task(void)
-//{
-//	static uint8_t idle = 0,last = 0;//边沿触发
-//	static uint32_t last_trigger_time = 0;//消抖
-//	
-//	if(channel[2] < CHANNEL_DEAD_ZONE && channel[2] > -CHANNEL_DEAD_ZONE) 
-//		idle = 1;//空闲状态
-//	else
-//	{
-//		idle = 0;
-//		if(last)
-//		{
-//			uint32_t current_time = HAL_GetTick();//当前时间
-//			if(current_time - last_trigger_time > DEBOUNCE_DELAY)//消抖
-//			{	
-//				if(channel[2] < -CHANNEL_DEAD_ZONE)
-//					driver_target_angle += 1440.0f;
-//				if(channel[2] > CHANNEL_DEAD_ZONE)
-//					//这里需要连发逻辑
-//				last_trigger_time = current_time;//上次触发时间
-//			}	
-//			last = 0;
-//		}
-//	}
-//	/*串级PID*/
-//	pid_calculate(&driver_angle_pid, driver_target_angle, driver_angle.total_angle);
-//	pid_calculate(&driver_speed_pid, driver_angle_pid.out, Driver_Data.speed);
-//	
-//	last = idle;
-//}
+void Driver_Task(void)
+{
+	static uint8_t idle = 0,last = 0;//边沿触发
+	static uint32_t last_trigger_time = 0;//消抖
+	
+	if(channel[2] < CHANNEL_DEAD_ZONE && channel[2] > -CHANNEL_DEAD_ZONE) 
+		idle = 1;//空闲状态
+	else
+	{
+		idle = 0;
+		if(last)
+		{
+			uint32_t current_time = HAL_GetTick();//当前时间
+			if(current_time - last_trigger_time > DEBOUNCE_DELAY)//消抖
+			{	
+				if(channel[2] < -CHANNEL_DEAD_ZONE)
+					driver_target_angle += 1440.0f;
+				if(channel[2] > CHANNEL_DEAD_ZONE)
+					driver_target_angle += 1440.0f;
+					//这里需要连发逻辑
+				last_trigger_time = current_time;//上次触发时间
+			}	
+			last = 0;
+		}
+	}
+	/*串级PID*/
+	pid_calculate(&driver_angle_pid, driver_target_angle, driver_angle.total_angle);
+	pid_calculate(&driver_speed_pid, driver_angle_pid.out, Driver_Data.speed);
+	
+	last = idle;
+}
 
 
 /*摩擦轮 左正右反*/
