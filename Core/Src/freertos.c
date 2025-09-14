@@ -22,7 +22,7 @@
 #include "task.h"
 #include "main.h"
 #include "cmsis_os.h"
-#include "semphr.h"
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 /*mpu6050*/
@@ -41,7 +41,7 @@
 #include "calculate.h"
 #include "pid.h"
 #include "control.h"
-#include "dbus.h"
+#include "ibus.h"
 /*tool*/
 #include <stdint.h>
 #include <stdio.h>
@@ -153,18 +153,6 @@ const osThreadAttr_t CAN2ProcessTask_attributes = {
   .stack_size = 256 * 4,
   .priority = (osPriority_t) osPriorityHigh3,
 };
-/* Definitions for DR16DataTask */
-osThreadId_t DR16DataTaskHandle;
-const osThreadAttr_t DR16DataTask_attributes = {
-  .name = "DR16DataTask",
-  .stack_size = 256 * 4,
-  .priority = (osPriority_t) osPriorityRealtime2,
-};
-/* Definitions for DR16 */
-osMessageQueueId_t DR16Handle;
-const osMessageQueueAttr_t DR16_attributes = {
-  .name = "DR16"
-};
 /* Definitions for CAN1 */
 osMessageQueueId_t CAN1Handle;
 const osMessageQueueAttr_t CAN1_attributes = {
@@ -207,7 +195,6 @@ void friction_task(void *argument);
 void driver_task(void *argument);
 void can1_process_task(void *argument);
 void can2_process_task(void *argument);
-void dr16_data_task(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -270,9 +257,6 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE END RTOS_TIMERS */
 
   /* Create the queue(s) */
-  /* creation of DR16 */
-  DR16Handle = osMessageQueueNew (5, sizeof(RC_FRAME_LENGTH), &DR16_attributes);
-
   /* creation of CAN1 */
   CAN1Handle = osMessageQueueNew (10, sizeof(CAN_RxBuffer_t), &CAN1_attributes);
 
@@ -316,9 +300,6 @@ void MX_FREERTOS_Init(void) {
 
   /* creation of CAN2ProcessTask */
   CAN2ProcessTaskHandle = osThreadNew(can2_process_task, NULL, &CAN2ProcessTask_attributes);
-
-  /* creation of DR16DataTask */
-  DR16DataTaskHandle = osThreadNew(dr16_data_task, NULL, &DR16DataTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -433,9 +414,9 @@ void print_task(void *argument)
   for(;;)
   {
 		/*yaw*/
-		printf("%f,%f,%f,%f,%d,%d\n", yaw_target_angle, yaw_angle.total_angle, pitch_target_angle, pitch_angle.total_angle, friction_left_speed, Friction_Left_Data.speed);
+//		printf("%f,%f,%f,%f\n", yaw_target_angle, yaw_angle.total_angle,yaw_angle_pid.out, yaw_angle.speed);
 		/*拨盘*/
-//		printf("%f,%f,%f,%f\n", driver_target_angle, driver_angle.total_angle, driver_angle_pid.out, driver_angle.speed);
+		printf("%f,%f,%f,%f\n", driver_target_angle, driver_angle.total_angle, driver_angle_pid.out, driver_angle.speed);
 		osDelay(10);
   }
   /* USER CODE END print_task */
@@ -473,7 +454,7 @@ void pitch_task(void *argument)
   /* Infinite loop */
   for(;;)
   {
-		Pitch_Task();
+//		Pitch_Task();
     osDelay(1);
   }
   /* USER CODE END pitch_task */
@@ -557,34 +538,6 @@ void can2_process_task(void *argument)
     osDelay(1);
   }
   /* USER CODE END can2_process_task */
-}
-
-/* USER CODE BEGIN Header_dr16_data_task */
-/**
-* @brief Function implementing the DR16DataTask thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_dr16_data_task */
-void dr16_data_task(void *argument)
-{
-  /* USER CODE BEGIN dr16_data_task */
-	uint8_t *dr16_data;
-  /* Infinite loop */
-  for(;;)
-  {
-		if(xQueueReceive(DR16Handle, &dr16_data, portMAX_DELAY) == pdPASS)
-			{
-				if(xSemaphoreTake(dr16_mutexHandle, portMAX_DELAY) == pdTRUE)
-				{
-					DR16_Data(&dr16, dr16_data);
-					xSemaphoreGive(dr16_mutexHandle);
-				}
-				vPortFree(dr16_data);
-			}
-    osDelay(1);
-  }
-  /* USER CODE END dr16_data_task */
 }
 
 /* Private application code --------------------------------------------------*/

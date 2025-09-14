@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include "calculate.h"
 
-#define CHANNEL_DEAD_ZONE		200
+#define CHANNEL_DEAD_ZONE		270
 
 typedef enum
 {

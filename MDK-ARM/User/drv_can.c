@@ -82,12 +82,13 @@ void CAN_Init(void)
   * @param  motor_id: 电机ID
   * @param  message: 待发送的8字节数据
   */
-void CAN1_Send(uint32_t motor_id ,uint8_t *message)
+void CAN1_Send(uint8_t *message)
 {
 	CAN_HandleTypeDef *hcan;
 	uint32_t std_id;
 	uint32_t mailbox;
-	std_id = (motor_id == PITCH_ID)?(0x1FF):(M3508_CTRL_ID_BASE);
+	std_id = M3508_CTRL_ID_BASE;
+//	std_id = (motor_id == PITCH_ID)?(0x1FF):(M3508_CTRL_ID_BASE);
 //	std_id = M3508_CTRL_ID_BASE;
 	mailbox = CAN_TX_MAILBOX0;
 	/* 统一报文头配置 */

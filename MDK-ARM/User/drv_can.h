@@ -10,12 +10,19 @@
 #define GM6020_CTRL_ID_BASE 0x1FF 	//GM6020控制指令基地址
 #define M3508_CTRL_ID_BASE  0x200  //M3508控制指令基地址
 
-#define LEFT_FRICTION_ID		0x201	 //左摩擦轮ID=1
-#define RIGHT_FRICTION_ID		0x202	 //右摩擦轮ID=2
-#define DRIVER_ID						0x203  //拨盘电机ID=3
+#define LEFT_FRICTION_ID		0x204	 //左摩擦轮ID=4
+#define RIGHT_FRICTION_ID		0x201	 //右摩擦轮ID=1
+#define DRIVER_ID						0x202  //拨盘电机ID=2
 
-#define YAW_ID							0x208  //YawID=4
-#define PITCH_ID						0x206	 //PitchID=2
+#define YAW_ID							0x205  //YawID=1
+#define PITCH_ID						0x208	 //PitchID=4
+
+//#define LEFT_FRICTION_ID		0x201	 //左摩擦轮ID=1
+//#define RIGHT_FRICTION_ID		0x202	 //右摩擦轮ID=2
+//#define DRIVER_ID						0x203  //拨盘电机ID=3
+
+//#define YAW_ID							0x208  //YawID=4
+//#define PITCH_ID						0x206	 //PitchID=2
 
 #define UNIVERSAL_ID        0x620	 //通用发送
 
@@ -105,7 +112,7 @@ extern Motor_Mode_t Yaw_Mode;
 extern Motor_Mode_t Pitch_Mode;
 
 void CAN_Init(void);
-void CAN1_Send(uint32_t motor_id ,uint8_t *message);
+void CAN1_Send(uint8_t *message);
 void CAN2_Send(uint8_t *message);
 void ProcessMotorData(CAN_RxBuffer_t* rx_buf);
 

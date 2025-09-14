@@ -1,8 +1,7 @@
-/*New Try : 禁用mpu6050改用电机回传数据*/
 #include "control.h"
 #include "pid.h"
 #include "drv_can.h"
-#include "dbus.h"
+#include "ibus.h"
 #include "can.h"
 #include <stdint.h>
 #include <stdio.h>
@@ -12,8 +11,8 @@
 
 /*can收发数据*/
 uint8_t message_can1[8];//friction driver
-uint8_t message_can2[8];//yaw
-uint8_t message_can1_gm6020[8];//pitch
+uint8_t message_can2[8];//yaw pitch
+//uint8_t message_can1_gm6020[8];//pitch
 /*电机目标值*/
 float yaw_target_angle = 0;
 float pitch_target_angle = 0;
@@ -36,7 +35,8 @@ void Yaw_Task(void)
 {
 	static uint8_t idle = 0,last = 0;//边沿触发
 	static uint32_t last_trigger_time = 0;//消抖
-	if(channel[0] < CHANNEL_DEAD_ZONE && channel[0] > -CHANNEL_DEAD_ZONE) 
+	int16_t yaw_input = channel[3] - IBUS_CHANNEL_MID;
+	if(yaw_input < CHANNEL_DEAD_ZONE && yaw_input > -CHANNEL_DEAD_ZONE) 
 		idle = 1;//空闲状态
 	else
 	{
@@ -46,9 +46,9 @@ void Yaw_Task(void)
 			uint32_t current_time = HAL_GetTick();//当前时间
 			if(current_time - last_trigger_time > DEBOUNCE_DELAY)//消抖
 			{
-				if(channel[0] > CHANNEL_DEAD_ZONE)
+				if(yaw_input > CHANNEL_DEAD_ZONE)
 					yaw_target_angle -= 30.0f;
-				else if(channel[0] < -CHANNEL_DEAD_ZONE)
+				else if(yaw_input < -CHANNEL_DEAD_ZONE)
 					yaw_target_angle += 30.0f;
 				last_trigger_time = current_time;//上次触发时间
 			}
@@ -78,7 +78,8 @@ void Pitch_Task(void)
 {
 	static uint8_t idle = 0,last = 0;//边沿触发
 	static uint32_t last_trigger_time = 0;//消抖
-	if(channel[1] < CHANNEL_DEAD_ZONE && channel[1] > -CHANNEL_DEAD_ZONE) 
+	int16_t pitch_input = channel[1] - IBUS_CHANNEL_MID;
+	if(pitch_input < CHANNEL_DEAD_ZONE && pitch_input > -CHANNEL_DEAD_ZONE) 
 		idle = 1;//空闲状态
 	else
 	{
@@ -88,12 +89,12 @@ void Pitch_Task(void)
 			uint32_t current_time = HAL_GetTick();//当前时间
 			if(current_time - last_trigger_time > DEBOUNCE_DELAY)//消抖
 			{
-				if(channel[1] > CHANNEL_DEAD_ZONE)
+				if(pitch_input > CHANNEL_DEAD_ZONE)
 				{
 					pitch_target_angle -= 30.0f;
 					pitch_mode = up;
 				}
-				else if(channel[1] < -CHANNEL_DEAD_ZONE)
+				else if(pitch_input < -CHANNEL_DEAD_ZONE)
 				{
 					pitch_target_angle += 30.0f;
 					pitch_mode = down;
@@ -134,8 +135,8 @@ void Driver_Task(void)
 {
 	static uint8_t idle = 0,last = 0;//边沿触发
 	static uint32_t last_trigger_time = 0;//消抖
-	
-	if(channel[2] < CHANNEL_DEAD_ZONE && channel[2] > -CHANNEL_DEAD_ZONE) 
+	int16_t driver_input = channel[0] - IBUS_CHANNEL_MID;
+	if(driver_input < CHANNEL_DEAD_ZONE && driver_input > -CHANNEL_DEAD_ZONE) 
 		idle = 1;//空闲状态
 	else
 	{
@@ -145,9 +146,9 @@ void Driver_Task(void)
 			uint32_t current_time = HAL_GetTick();//当前时间
 			if(current_time - last_trigger_time > DEBOUNCE_DELAY)//消抖
 			{	
-				if(channel[2] < -CHANNEL_DEAD_ZONE)
+				if(driver_input < -CHANNEL_DEAD_ZONE)
 					driver_target_angle += 1440.0f;
-				if(channel[2] > CHANNEL_DEAD_ZONE)
+				if(driver_input > CHANNEL_DEAD_ZONE)
 					driver_target_angle += 1440.0f;
 					//这里需要连发逻辑
 				last_trigger_time = current_time;//上次触发时间
@@ -166,8 +167,9 @@ void Driver_Task(void)
 /*摩擦轮 左正右反*/
 void Friction_Task(void)
 {
+	int16_t friction_input = channel[2] - IBUS_CHANNEL_MID;
 	/*目标速度*/
-	if(channel[3] > CHANNEL_DEAD_ZONE)
+	if(friction_input > CHANNEL_DEAD_ZONE)
 	{
 		friction_left_speed = M3508_TARGET;
 		friction_right_speed = -M3508_TARGET;
@@ -187,8 +189,10 @@ void Friction_Task(void)
 void PID_Init(void)
 {
 	/*PID初始化*/
-	pid_init(&yaw_speed_pid, 1320.0f, 0.0f, 200.0f);
-	pid_init(&yaw_angle_pid, 1.63327003f, 0.030237004f, 2.6900006f);
+//	pid_init(&yaw_speed_pid, 1320.0f, 0.0f, 200.0f);
+//	pid_init(&yaw_angle_pid, 1.63327003f, 0.030237004f, 2.6900006f);
+	pid_init(&yaw_speed_pid, 300.0f, 0.0f, 0.0f);
+	pid_init(&yaw_angle_pid, 1.0f, 0.0f, 0.0f);
 	
 	pid_init(&pitch_speed_pid, 500.0f, 0.0f, 70.0f);
 	pid_init(&pitch_angle_pid, 1.711f, 0.021f, 0.154f);
@@ -196,8 +200,8 @@ void PID_Init(void)
 	pid_init(&pitch_speed_pid_down, 380.0f, 0.0f, 20.0f);
 	pid_init(&pitch_angle_pid_down, 0.8f, 0.06f, 0.0f);
 	
-	pid_init(&driver_speed_pid, 0.0f, 0.0f, 0.0f);
-	pid_init(&driver_angle_pid, 0.0f, 0.0f, 0.0f);
+	pid_init(&driver_speed_pid, 0.3f, 0.0f, 0.0f);
+	pid_init(&driver_angle_pid, 0.3f, 0.0f, 0.0f);
 	
 	pid_init(&friction_left_pid, 4.2f, 0.001f, 0.45f);
 	pid_init(&friction_right_pid, 4.2f, 0.001f, 0.45f);
@@ -207,7 +211,7 @@ void PID_Init(void)
 void Init_Task(void)
 {
 	CAN_Init();
-	DBUS_Init();
+	IBUS_Init();
 	PID_Init();
 }
 
@@ -220,18 +224,17 @@ void CAN_Task(void)
 	friction_left_pid.out = Limit_Min_Max(friction_left_pid.out, CURRENT_MIN, CURRENT_MAX);
 	friction_right_pid.out = Limit_Min_Max(friction_right_pid.out, CURRENT_MIN, CURRENT_MAX);
 	/*can发送信息*/
-	DecimalToHex(yaw_speed_pid.out, &message_can2[6], &message_can2[7]);/*ID=4 Yaw GM6020*/
-	DecimalToHex(pitch_output, &message_can1_gm6020[2], &message_can1_gm6020[3]);/*ID=2 Pitch GM6020*/
-	DecimalToHex(friction_left_pid.out, &message_can1[0], &message_can1[1]);/*ID=1 左摩擦轮 M3508*/
-	DecimalToHex(-friction_right_pid.out, &message_can1[2], &message_can1[3]);/*ID=2 右摩擦轮 M3508*/
-	DecimalToHex(driver_speed_pid.out, &message_can1[4], &message_can1[5]);/*ID=3 拨盘电机 M2006 空载500rpm*/
+	DecimalToHex(yaw_speed_pid.out, &message_can2[0], &message_can2[1]);/*ID=1 Yaw GM6020*/
+	DecimalToHex(pitch_output, &message_can2[6], &message_can2[7]);/*ID=4 Pitch GM6020*/
+	DecimalToHex(friction_left_pid.out, &message_can1[6], &message_can1[7]);/*ID=4 左摩擦轮 M3508*/
+	DecimalToHex(-friction_right_pid.out, &message_can1[0], &message_can1[1]);/*ID=1 右摩擦轮 M3508*/
+	DecimalToHex(driver_speed_pid.out, &message_can1[2], &message_can1[3]);/*ID=2 拨盘电机 M2006 空载500rpm*/
   /*遥控保护*/
 	switch(CheckRemoteSignal())
 	{
 		case 1:
 			/*CAN发送*/
-			CAN1_Send(UNIVERSAL_ID, message_can1);
-			CAN1_Send(PITCH_ID, message_can1_gm6020);
+			CAN1_Send(message_can1);
 			CAN2_Send(message_can2);
 			break;
 		case 0:
@@ -241,7 +244,7 @@ void CAN_Task(void)
 
 void Motor_Init(void)
 {
-	if(channel[4] == 2 || channel[5] == 2)
+	if(channel[4] == 1000 || channel[5] == 1000)
 	{
 		yaw_angle.read_flag = 0;
 		pitch_angle.read_flag = 0;
