@@ -74,30 +74,30 @@ CAN 总线拓扑：
 
 ## 项目结构
 
-`
+```
 gimbal/
 +--- Core/
-|   +--- Inc/                    HAL 层头文件 (STM32CubeMX 生成)
+|   +--- Inc/                 HAL 层头文件 (STM32CubeMX 生成)
 |   |   +--- main.h
 |   |   +--- can.h, dma.h, gpio.h, i2c.h, usart.h
 |   |   +--- FreeRTOSConfig.h
-|   +--- Src/                    HAL 层源文件 (STM32CubeMX 生成)
+|   +--- Src/                 HAL 层源文件 (STM32CubeMX 生成)
 |       +--- main.c
-|       +--- freertos.c          任务定义、消息队列、任务函数实现
+|       +--- freertos.c       任务定义、消息队列、任务函数实现
 |       +--- can.c, dma.c, gpio.c, i2c.c, usart.c
 |       +--- stm32f4xx_hal_msp.c, stm32f4xx_it.c
-+--- Drivers/                    CMSIS + STM32F4xx HAL 驱动库
++--- Drivers/                 CMSIS + STM32F4xx HAL 驱动库
 +--- MDK-ARM/
-|   +--- User/                   用户应用代码
-|   |   +--- control.c/h         云台/摩擦轮/拨盘控制任务
-|   |   +--- pid.c/h             PID 控制器实现
-|   |   +--- dbus.c/h            DR16 遥控器驱动
-|   |   +--- drv_can.c/h         CAN 总线底层驱动
-|   |   +--- calculate.c/h       工具函数(限幅/滤波/角度累加)
-|   +--- Gimbal.uvguix.20829     Keil MDK 项目文件
-+--- Middlewares/                 第三方中间件(MPU6050 DMP库)
-+--- Embedded/                    Embedded IDE 项目配置(备选)
-`
+|   +--- User/                用户应用代码
+|   |   +--- control.c/h      云台/摩擦轮/拨盘控制任务
+|   |   +--- pid.c/h          PID 控制器实现
+|   |   +--- dbus.c/h         DR16 遥控器驱动
+|   |   +--- drv_can.c/h      CAN 总线底层驱动
+|   |   +--- calculate.c/h    工具函数(限幅/滤波/角度累加)
+|   +--- Gimbal.uvguix.20829  Keil MDK 项目文件
++--- Middlewares/             第三方中间件(MPU6050 DMP库)
++--- Embedded/                Embedded IDE 项目配置(备选)
+```
 
 ### 用户代码模块说明
 
