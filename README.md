@@ -6,7 +6,7 @@
 
 | 组件 | 型号 | 说明 |
 |------|------|------|
-| MCU | STM32F407VGT6 | 168MHz, Cortex-M4F |
+| MCU | STM32F405RGT6 | 168MHz, Cortex-M4F |
 | 云台 Yaw 电机 | GM6020 | 大扭矩无刷电机, 支持角度/速度回传, CAN2 |
 | 云台 Pitch 电机 | GM6020 | 同上, CAN1 |
 | 摩擦轮 x2 | M3508 | 高速无刷电机, CAN1, ID 1/2 |
